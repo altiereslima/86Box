@@ -20,13 +20,13 @@ msgid "&Keyboard requires capture"
 msgstr "O &teclado requer captura"
 
 msgid "&Right CTRL is left ALT"
-msgstr "CTR&L direito é o ALT esquerdo"
+msgstr "CTRL &direito é o ALT esquerdo"
 
 msgid "&Hard reset"
 msgstr "&Reinicialização completa"
 
 msgid "&Ctrl+Alt+Del"
-msgstr "Ctrl+Alt+&Del"
+msgstr "&Ctrl+Alt+Del"
 
 msgid "Ctrl+Alt+&Esc"
 msgstr "Ctrl+Alt+&Esc"
@@ -47,7 +47,7 @@ msgid "&View"
 msgstr "&Exibir"
 
 msgid "&Hide status bar"
-msgstr "Ocultar barra de &status"
+msgstr "Ocultar &barra de status"
 
 msgid "Hide &toolbar"
 msgstr "Ocultar barra de &ferramentas"
@@ -113,7 +113,7 @@ msgid "&8x"
 msgstr "&8x"
 
 msgid "Fi&lter method"
-msgstr "Método d&e filtragem"
+msgstr "Método de fi&ltragem"
 
 msgid "&Nearest"
 msgstr "&Mais próximo"
@@ -122,7 +122,7 @@ msgid "&Linear"
 msgstr "&Linear"
 
 msgid "Hi&DPI scaling"
-msgstr "Escala &HiDPI"
+msgstr "Escala Hi&DPI"
 
 msgid "&Fullscreen"
 msgstr "&Tela cheia"
@@ -254,7 +254,7 @@ msgid "&New image…"
 msgstr "&Nova imagem…"
 
 msgid "&Existing image…"
-msgstr "&Imagem existente…"
+msgstr "Imagem &existente…"
 
 msgid "Existing image (&Write-protected)…"
 msgstr "Imagem existente (&protegida contra gravação)…"
@@ -263,7 +263,7 @@ msgid "&Record"
 msgstr "&Gravar"
 
 msgid "&Play"
-msgstr "&Reproduzir"
+msgstr "Re&produzir"
 
 msgid "&Rewind to the beginning"
 msgstr "Re&troceder até o começo"
@@ -359,16 +359,16 @@ msgid "[1989] i486 (Socket 168 and 1)"
 msgstr "[1989] i486 (Socket 168 e 1)"
 
 msgid "[1994] i486 (Miscellaneous)"
-msgstr "[1994] i486 (Miscelânea)"
+msgstr "[1994] i486 (vários)"
 
 msgid "[1995] Socket 7 (Single Voltage)"
-msgstr "[1995] Socket 7 (Voltagem Única)"
+msgstr "[1995] Socket 7 (voltagem única)"
 
 msgid "[1996] Socket 7 (Dual Voltage)"
-msgstr "[1996] Socket 7 (Voltagem Dupla)"
+msgstr "[1996] Socket 7 (voltagem dupla)"
 
 msgid "Miscellaneous"
-msgstr "Miscelânea"
+msgstr "Vários"
 
 msgid "Machine:"
 msgstr "Máquina:"
@@ -398,7 +398,7 @@ msgid "Internal"
 msgstr "Interno"
 
 msgid "Wait states:"
-msgstr "Estados de espera:"
+msgstr "Ciclos de espera:"
 
 msgid "MB"
 msgstr "MB"
@@ -542,28 +542,28 @@ msgid "IDE Controller"
 msgstr "Controlador IDE"
 
 msgid "IDE Controller (Dual-Channel)"
-msgstr "Controlador IDE (Duplo-Canal)"
+msgstr "Controlador IDE (duplo-canal)"
 
 msgid "PC/AT IDE Controller"
 msgstr "Controlador PC/AT IDE"
 
 msgid "PC/AT IDE Controller (Dual-Channel)"
-msgstr "Controlador PC/AT IDE (Duplo-Canal)"
+msgstr "Controlador PC/AT IDE (duplo-canal)"
 
 msgid "PC/AT XTIDE (Primary Only)"
-msgstr "PC/AT XTIDE (Apenas Primário)"
+msgstr "PC/AT XTIDE (apenas primário)"
 
 msgid "PS/2 AT XTIDE (1.1.5) (Primary Only)"
-msgstr "PS/2 AT XTIDE (1.1.5) (Apenas Primário)"
+msgstr "PS/2 AT XTIDE (1.1.5) (apenas primário)"
 
 msgid "CMD PCI-0646 (Tertiary and Quaternary)"
-msgstr "CMD PCI-0646 (Terciário e Quaternário)"
+msgstr "CMD PCI-0646 (terciário e quaternário)"
 
 msgid "CMD PCI-0648 (Tertiary and Quaternary)"
-msgstr "CMD PCI-0648 (Terciário e Quaternário)"
+msgstr "CMD PCI-0648 (terciário e quaternário)"
 
 msgid "CMD PCI-0649 (Tertiary and Quaternary)"
-msgstr "CMD PCI-0649 (Terciário e Quaternário)"
+msgstr "CMD PCI-0649 (terciário e quaternário)"
 
 msgid "McIDE Controller"
 msgstr "Controlador McIDE"
@@ -599,7 +599,7 @@ msgid "Hard disks:"
 msgstr "Discos rígidos:"
 
 msgid "Firmware Version"
-msgstr "Versão do Firmware"
+msgstr "Versão do firmware"
 
 msgid "DSP Version"
 msgstr "Versão do DSP"
@@ -866,7 +866,7 @@ msgid "Default"
 msgstr "Padrão"
 
 msgid "%1 Wait state(s)"
-msgstr "%1 estado(s) de espera"
+msgstr "%1 ciclo(s) de espera"
 
 msgid "Type"
 msgstr "Tipo"
@@ -1271,13 +1271,13 @@ msgid "Open p&rinter tray…"
 msgstr "Abrir fila da &impressora…"
 
 msgid "Set &icon…"
-msgstr "&Definir ícone…"
+msgstr "Definir &ícone…"
 
 msgid "Select an icon"
 msgstr "Selecione um ícone"
 
 msgid "C&lone…"
-msgstr "&Clonar…"
+msgstr "C&lonar…"
 
 msgid "Virtual machine \"%1\" (%2) will be cloned into:"
 msgstr "A máquina virtual \"%1\" (%2) será clonada em:"
@@ -1433,7 +1433,7 @@ msgid "Disk image file already exists"
 msgstr "A imagem de disco já existe"
 
 msgid "Please specify a valid file name."
-msgstr "Digite um nome de arquivo válido."
+msgstr "Por favor, digite um nome de arquivo válido."
 
 msgid "Disk image created"
 msgstr "A imagem de disco foi criada"
@@ -1679,7 +1679,7 @@ msgid "Show non-&primary monitors"
 msgstr "Mostrar monitores não &primários"
 
 msgid "Open screenshots &folder…"
-msgstr "Ab&rir pasta de capturas de tela…"
+msgstr "&Abrir pasta de capturas de tela…"
 
 msgid "Appl&y fullscreen stretch mode when maximized"
 msgstr "Apl&icar modo de ampliação em tela cheia quando maximizado"
@@ -1712,7 +1712,7 @@ msgid "Null Driver"
 msgstr "Driver nulo"
 
 msgid "NIC:"
-msgstr "Placa de Rede:"
+msgstr "Placa de rede:"
 
 msgid "NIC %1 (%2) %3"
 msgstr "NIC %1 (%2) %3"
@@ -1730,7 +1730,7 @@ msgid " fps"
 msgstr " fps"
 
 msgid "VSync"
-msgstr "VSync"
+msgstr "Sincronização vertical"
 
 msgid "Synchronize with video"
 msgstr "Sincronizar com o vídeo"
@@ -1943,7 +1943,7 @@ msgid "Enable BIOS extension ROM Writes (ROM #4)"
 msgstr "Habilitar gravações na ROM de extensão do BIOS (ROM nº 4)"
 
 msgid "Linear framebuffer base"
-msgstr "Base do framebuffer linear"
+msgstr "Base do buffer de quadros linear"
 
 msgid "Address"
 msgstr "Endereço"
@@ -2177,7 +2177,7 @@ msgid "SID Filter Strength"
 msgstr "Força do Filtro SID"
 
 msgid "Surround module"
-msgstr "Módulo surround"
+msgstr "Módulo Surround"
 
 msgid "SB Address"
 msgstr "Endereço da SB"
@@ -2300,7 +2300,7 @@ msgid "Voodoo type"
 msgstr "Tipo de Voodoo"
 
 msgid "Framebuffer memory size"
-msgstr "Tamanho da memória do framebuffer"
+msgstr "Tamanho da memória do buffer de quadros"
 
 msgid "Texture memory size"
 msgstr "Tamanho da memória da textura"
@@ -2609,7 +2609,7 @@ msgid "Standard (150ns)"
 msgstr "Padrão (150ns)"
 
 msgid "High-Speed (120ns)"
-msgstr "Alta velocidade (120 ns)"
+msgstr "Alta velocidade (120ns)"
 
 msgid "Enabled"
 msgstr "Ativado"
@@ -2669,10 +2669,10 @@ msgid "Baud Rate of Passthrough"
 msgstr "Taxa de transmissão de passagem"
 
 msgid "Named Pipe (Server)"
-msgstr "Pipe nomeado (Servidor)"
+msgstr "Pipe nomeado (servidor)"
 
 msgid "Named Pipe (Client)"
-msgstr "Pipe nomeado (Cliente)"
+msgstr "Pipe nomeado (cliente)"
 
 msgid "Host Serial Passthrough"
 msgstr "Passagem da porta serial do host"
@@ -2825,10 +2825,10 @@ msgid "Clear binding"
 msgstr "Limpar atalho"
 
 msgid "Bind"
-msgstr "Vincular"
+msgstr "Definir"
 
 msgid "Bind Key"
-msgstr "Vincular tecla"
+msgstr "Definir tecla"
 
 msgid "Enter key combo:"
 msgstr "Pressione combinação de teclas:"
@@ -2915,7 +2915,7 @@ msgid "Unknown Status"
 msgstr "Estado desconhecido"
 
 msgid "No Machines Found!"
-msgstr "Nenhuma Máquina Encontrada!"
+msgstr "Nenhuma máquina encontrada!"
 
 msgid "Check for updates on startup"
 msgstr "Verificar atualizações ao iniciar"
