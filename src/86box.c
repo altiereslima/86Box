@@ -1959,6 +1959,8 @@ pc_close(UNUSED(thread_t *ptr))
 
     network_close();
 
+    sound_main_thread_end();
+
     sound_cd_thread_end();
 
     cdrom_close();

@@ -104,6 +104,12 @@ static event_t      *sound_hdd_start_event;
 static volatile int hddaudioon = 0;
 static int          hdd_thread_enable = 0;
 
+/* Main audio synthesis thread (OPT-3): moves sound_poll() heavy work off the CPU thread. */
+static thread_t     *sound_main_thread_h     = NULL;
+static event_t      *sound_main_event        = NULL;
+static event_t      *sound_main_start_event  = NULL;
+static volatile int  sound_main_running      = 0;
+
 static void (*filter_cd_audio)(int channel, double *buffer, void *priv) = NULL;
 static void *filter_cd_audio_p                                          = NULL;
 
@@ -540,6 +546,9 @@ sound_init(void)
         cdaudioon = 0;
 
     cd_thread_enable = available_cdrom_drives ? 1 : 0;
+
+    /* OPT-3: start the dedicated audio synthesis thread. */
+    sound_main_thread_init();
 }
 
 void
@@ -584,6 +593,119 @@ sound_set_pc_speaker_filter(void (*filter)(int channel, double *buffer, void *pr
     }
 }
 
+/*
+ * OPT-3: Heavy sample generation / host handoff, executed on the dedicated
+ * audio thread (or inline as a fallback if the thread is not running).
+ */
+static void
+sound_poll_generate(void)
+{
+    int c;
+
+    memset(outbuffer, 0x00, SOUNDBUFLEN * 2 * sizeof(int32_t));
+
+    for (c = 0; c < sound_handlers_num; c++)
+        sound_handlers[c].get_buffer(outbuffer, SOUNDBUFLEN, sound_handlers[c].priv);
+
+    for (c = 0; c < SOUNDBUFLEN * 2; c++) {
+        if (sound_is_float)
+            outbuffer_ex[c] = ((float) outbuffer[c]) / (float) 32768.0;
+        else {
+            if (outbuffer[c] > 32767)
+                outbuffer[c] = 32767;
+            if (outbuffer[c] < -32768)
+                outbuffer[c] = -32768;
+
+            outbuffer_ex_int16[c] = (int16_t) outbuffer[c];
+        }
+    }
+
+    if (sound_is_float)
+        givealbuffer(outbuffer_ex);
+    else
+        givealbuffer(outbuffer_ex_int16);
+
+    if (cd_thread_enable) {
+        cd_buf_update--;
+        if (!cd_buf_update) {
+            cd_buf_update = (SOUND_FREQ / SOUNDBUFLEN) / (CD_FREQ / CD_BUFLEN);
+            thread_set_event(sound_cd_event);
+        }
+    }
+
+    if (fdd_thread_enable) {
+        thread_set_event(sound_fdd_event);
+    }
+
+    if (hdd_thread_enable) {
+        thread_set_event(sound_hdd_event);
+    }
+}
+
+/*
+ * OPT-3: Dedicated audio synthesis thread. Waits for the CPU-side
+ * sound_poll() to signal that a buffer of samples is due, then runs the
+ * heavy synthesis / conversion / host handoff off the CPU thread.
+ */
+static void
+sound_main_thread(UNUSED(void *param))
+{
+    thread_set_event(sound_main_start_event);
+
+    while (sound_main_running) {
+        thread_wait_event(sound_main_event, -1);
+        thread_reset_event(sound_main_event);
+
+        if (!sound_main_running)
+            break;
+
+        sound_poll_generate();
+    }
+}
+
+void
+sound_main_thread_init(void)
+{
+    if (sound_main_running)
+        return;
+
+    sound_main_running     = 1;
+    sound_main_start_event = thread_create_event();
+    sound_main_event       = thread_create_event();
+    sound_main_thread_h    = thread_create(sound_main_thread, NULL);
+
+    sound_log("Waiting for sound main thread start event...\n");
+    thread_wait_event(sound_main_start_event, -1);
+    thread_reset_event(sound_main_start_event);
+    sound_log("Sound main thread started.\n");
+}
+
+void
+sound_main_thread_end(void)
+{
+    if (!sound_main_running)
+        return;
+
+    sound_main_running = 0;
+
+    sound_log("Waiting for sound main thread to terminate...\n");
+    thread_set_event(sound_main_event);
+    thread_wait(sound_main_thread_h);
+    sound_log("Sound main thread terminated.\n");
+
+    if (sound_main_event) {
+        thread_destroy_event(sound_main_event);
+        sound_main_event = NULL;
+    }
+
+    if (sound_main_start_event) {
+        thread_destroy_event(sound_main_start_event);
+        sound_main_start_event = NULL;
+    }
+
+    sound_main_thread_h = NULL;
+}
+
 void
 sound_poll(UNUSED(void *priv))
 {
@@ -593,46 +715,18 @@ sound_poll(UNUSED(void *priv))
 
     sound_pos_global++;
     if (sound_pos_global == SOUNDBUFLEN) {
-        int c;
-
-        memset(outbuffer, 0x00, SOUNDBUFLEN * 2 * sizeof(int32_t));
-
-        for (c = 0; c < sound_handlers_num; c++)
-            sound_handlers[c].get_buffer(outbuffer, SOUNDBUFLEN, sound_handlers[c].priv);
-
-        for (c = 0; c < SOUNDBUFLEN * 2; c++) {
-            if (sound_is_float)
-                outbuffer_ex[c] = ((float) outbuffer[c]) / (float) 32768.0;
-            else {
-                if (outbuffer[c] > 32767)
-                    outbuffer[c] = 32767;
-                if (outbuffer[c] < -32768)
-                    outbuffer[c] = -32768;
-
-                outbuffer_ex_int16[c] = (int16_t) outbuffer[c];
-            }
-        }
-
-        if (sound_is_float)
-            givealbuffer(outbuffer_ex);
+        /*
+         * OPT-3: If the audio thread is running, just signal it and return
+         * quickly so the CPU thread is not blocked by the FM / OPL / other
+         * heavy synthesis inside sound_handlers[]. If the thread is not
+         * available (early boot, shutdown, fallback), run the generator
+         * inline to preserve the original behavior.
+         */
+        if (sound_main_running)
+            thread_set_event(sound_main_event);
         else
-            givealbuffer(outbuffer_ex_int16);
+            sound_poll_generate();
 
-        if (cd_thread_enable) {
-            cd_buf_update--;
-            if (!cd_buf_update) {
-                cd_buf_update = (SOUND_FREQ / SOUNDBUFLEN) / (CD_FREQ / CD_BUFLEN);
-                thread_set_event(sound_cd_event);
-            }
-        }
-
-        if (fdd_thread_enable) {
-            thread_set_event(sound_fdd_event);
-        }
-
-        if (hdd_thread_enable) {
-            thread_set_event(sound_hdd_event);
-        }
         sound_pos_global = 0;
     }
 }
