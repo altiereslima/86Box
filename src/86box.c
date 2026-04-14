@@ -1961,6 +1961,9 @@ pc_close(UNUSED(thread_t *ptr))
 
     sound_main_thread_end();
 
+    /* OPT-2: stop the dedicated wavetable (EMU8K) synthesis thread. */
+    wavetable_main_thread_end();
+
     sound_cd_thread_end();
 
     cdrom_close();

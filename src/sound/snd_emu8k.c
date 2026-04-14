@@ -16,6 +16,7 @@
 #include <86box/rom.h>
 #include <86box/sound.h>
 #include <86box/snd_emu8k.h>
+#include <86box/thread.h>
 #include <86box/timer.h>
 #include <86box/plat_unused.h>
 
@@ -793,9 +794,18 @@ emu8k_outw(uint16_t addr, uint16_t val, void *priv)
 {
     emu8k_t *emu8k = (emu8k_t *) priv;
 
-    /*TODO: I would like to not call this here, but i found it was needed or else cubic player would not finish opening (take a looot more of time than usual).
-     * Basically, being here means that the audio is generated in the emulation thread, instead of the audio thread.*/
-    emu8k_update(emu8k);
+    /*
+     * Cubic Player requires an explicit sync update here, otherwise the
+     * opening sequence takes much longer than usual. With OPT-2 the bulk of
+     * the generation is normally performed on the wavetable audio thread,
+     * but this CPU-side call remains as a compatibility fast path. The mutex
+     * (see emu8k_init) serializes it against the audio thread.
+     */
+    if (emu8k->update_mutex)
+        thread_wait_mutex((mutex_t *) emu8k->update_mutex);
+    emu8k_update(emu8k, wavetable_pos_global);
+    if (emu8k->update_mutex)
+        thread_release_mutex((mutex_t *) emu8k->update_mutex);
 
 #ifdef EMU8K_DEBUG_REGISTERS
     if (addr == 0xE22) {
@@ -1756,9 +1766,17 @@ int32_t old_cut[32]   = { 0 };
 int32_t old_vol[32]   = { 0 };
 #endif
 void
-emu8k_update(emu8k_t *emu8k)
+emu8k_update(emu8k_t *emu8k, int target_pos)
 {
-    if (emu8k->pos >= wavetable_pos_global)
+    /*
+     * OPT-2: target_pos is the upper bound within the WTBUFLEN buffer that
+     * must be filled in on this call. The CPU thread passes the current
+     * wavetable_pos_global (partial update for Cubic Player), the audio
+     * thread passes WTBUFLEN (full buffer). Clamp defensively.
+     */
+    if (target_pos > WTBUFLEN)
+        target_pos = WTBUFLEN;
+    if (emu8k->pos >= target_pos)
         return;
 
     int32_t       *buf;
@@ -1767,16 +1785,16 @@ emu8k_update(emu8k_t *emu8k)
 
     /* Clean the buffers since we will accumulate into them. */
     buf = &emu8k->buffer[emu8k->pos * 2];
-    memset(buf, 0, 2 * (wavetable_pos_global - emu8k->pos) * sizeof(emu8k->buffer[0]));
-    memset(&emu8k->chorus_in_buffer[emu8k->pos], 0, (wavetable_pos_global - emu8k->pos) * sizeof(emu8k->chorus_in_buffer[0]));
-    memset(&emu8k->reverb_in_buffer[emu8k->pos], 0, (wavetable_pos_global - emu8k->pos) * sizeof(emu8k->reverb_in_buffer[0]));
+    memset(buf, 0, 2 * (target_pos - emu8k->pos) * sizeof(emu8k->buffer[0]));
+    memset(&emu8k->chorus_in_buffer[emu8k->pos], 0, (target_pos - emu8k->pos) * sizeof(emu8k->chorus_in_buffer[0]));
+    memset(&emu8k->reverb_in_buffer[emu8k->pos], 0, (target_pos - emu8k->pos) * sizeof(emu8k->reverb_in_buffer[0]));
 
     /* Voices section  */
     for (uint8_t c = 0; c < 32; c++) {
         emu_voice = &emu8k->voice[c];
         buf       = &emu8k->buffer[emu8k->pos * 2];
 
-        for (pos = emu8k->pos; pos < wavetable_pos_global; pos++) {
+        for (pos = emu8k->pos; pos < target_pos; pos++) {
             int32_t dat;
 
             if (emu_voice->cvcf_curr_volume) {
@@ -2117,14 +2135,14 @@ emu8k_update(emu8k_t *emu8k)
     }
 
     buf = &emu8k->buffer[emu8k->pos * 2];
-    emu8k_work_reverb(&emu8k->reverb_in_buffer[emu8k->pos], buf, &emu8k->reverb_engine, wavetable_pos_global - emu8k->pos);
-    emu8k_work_chorus(&emu8k->chorus_in_buffer[emu8k->pos], buf, &emu8k->chorus_engine, wavetable_pos_global - emu8k->pos);
-    emu8k_work_eq(buf, wavetable_pos_global - emu8k->pos);
+    emu8k_work_reverb(&emu8k->reverb_in_buffer[emu8k->pos], buf, &emu8k->reverb_engine, target_pos - emu8k->pos);
+    emu8k_work_chorus(&emu8k->chorus_in_buffer[emu8k->pos], buf, &emu8k->chorus_engine, target_pos - emu8k->pos);
+    emu8k_work_eq(buf, target_pos - emu8k->pos);
 
     /* Update EMU clock. */
-    emu8k->wc += (wavetable_pos_global - emu8k->pos);
+    emu8k->wc += (target_pos - emu8k->pos);
 
-    emu8k->pos = wavetable_pos_global;
+    emu8k->pos = target_pos;
 }
 
 void
@@ -2198,6 +2216,13 @@ emu8k_init(emu8k_t *emu8k, uint16_t emu_addr, int onboard_ram)
     }
 
     emu8k_change_addr(emu8k, emu_addr);
+
+    /*
+     * OPT-2: Create the update mutex. This serializes emu8k_update() calls
+     * between the CPU thread (inline path from emu8k_outw for Cubic Player)
+     * and the dedicated wavetable audio thread started by sound_init().
+     */
+    emu8k->update_mutex = (void *) thread_create_mutex();
 
     /*Create frequency table. (Convert initial pitch register value to a linear speed change)
      * The input is encoded such as 0xe000 is center note (no pitch shift)
@@ -2369,6 +2394,15 @@ emu8k_init(emu8k_t *emu8k, uint16_t emu_addr, int onboard_ram)
 void
 emu8k_close(emu8k_t *emu8k)
 {
+    /*
+     * OPT-2: Destroy the update mutex created in emu8k_init(). Guarded so
+     * a double-free from a partial init path is harmless.
+     */
+    if (emu8k->update_mutex) {
+        thread_close_mutex((mutex_t *) emu8k->update_mutex);
+        emu8k->update_mutex = NULL;
+    }
+
     if (emu8k->rom)
         free(emu8k->rom);
     if (emu8k->ram)
