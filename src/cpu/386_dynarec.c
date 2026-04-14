@@ -314,7 +314,7 @@ exec386_dynarec_int(void)
             x386_dynarec_log("[%04X:%08X] fetchdat = %08X\n", CS, cpu_state.pc, fetchdat);
 #    endif
 
-        if (!cpu_state.abrt) {
+        if (LIKELY(!cpu_state.abrt)) {
             opcode = fetchdat & 0xFF;
             fetchdat >>= 8;
 
@@ -337,7 +337,7 @@ exec386_dynarec_int(void)
 #    endif
 
 #    ifdef USE_DEBUG_REGS_486
-        if (!cpu_state.abrt) {
+        if (LIKELY(!cpu_state.abrt)) {
             if (!rf_flag_no_clear) {
                 cpu_state.eflags &= ~RF_FLAG;
             }
@@ -346,29 +346,29 @@ exec386_dynarec_int(void)
         }
 #    endif
 
-        if (((cs + cpu_state.pc) >> 12) != pccache)
+        if (UNLIKELY(((cs + cpu_state.pc) >> 12) != pccache))
             CPU_BLOCK_END();
 
-        if (cpu_end_block_after_ins) {
+        if (UNLIKELY(cpu_end_block_after_ins)) {
             cpu_end_block_after_ins--;
             if (!cpu_end_block_after_ins)
                 CPU_BLOCK_END();
         }
 
-        if (cpu_init)
+        if (UNLIKELY(cpu_init))
             CPU_BLOCK_END();
 
-        if (cpu_state.abrt)
+        if (UNLIKELY(cpu_state.abrt))
             CPU_BLOCK_END();
-        if (smi_line)
+        if (UNLIKELY(smi_line))
             CPU_BLOCK_END();
-        else if (new_ne)
+        else if (UNLIKELY(new_ne))
             CPU_BLOCK_END();
-        else if (trap)
+        else if (UNLIKELY(trap))
             CPU_BLOCK_END();
-        else if (nmi && nmi_enable && nmi_mask)
+        else if (UNLIKELY(nmi && nmi_enable && nmi_mask))
             CPU_BLOCK_END();
-        else if ((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins)
+        else if (UNLIKELY((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins))
             CPU_BLOCK_END();
     }
 
@@ -407,9 +407,9 @@ exec386_dynarec_dyn(void)
     int valid_block = 0;
 
 #    ifdef USE_NEW_DYNAREC
-    if (!cpu_state.abrt)
+    if (LIKELY(!cpu_state.abrt))
 #    else
-    if (block && !cpu_state.abrt)
+    if (LIKELY(block && !cpu_state.abrt))
 #    endif
     {
         page_t *page = &pages[phys_addr >> 12];
@@ -418,7 +418,7 @@ exec386_dynarec_dyn(void)
            and physical address. The physical address check will
            also catch any page faults at this stage */
         valid_block = (block->pc == cs + cpu_state.pc) && (block->_cs == cs) && (block->phys == phys_addr) && !((block->status ^ cpu_cur_status) & CPU_STATUS_FLAGS) && ((block->status & cpu_cur_status & CPU_STATUS_MASK) == (cpu_cur_status & CPU_STATUS_MASK));
-        if (!valid_block) {
+        if (UNLIKELY(!valid_block)) {
             uint64_t mask = (uint64_t) 1 << ((phys_addr >> PAGE_MASK_SHIFT) & PAGE_MASK_MASK);
 #    ifdef USE_NEW_DYNAREC
             int      byte_offset = (phys_addr >> PAGE_BYTE_MASK_SHIFT) & PAGE_BYTE_MASK_OFFSET_MASK;
@@ -444,7 +444,7 @@ exec386_dynarec_dyn(void)
             }
         }
 
-        if (valid_block && (block->page_mask & *block->dirty_mask)) {
+        if (UNLIKELY(valid_block && (block->page_mask & *block->dirty_mask))) {
 #    ifdef USE_NEW_DYNAREC
             codegen_check_flush(page, page->dirty_mask, phys_addr);
             if (block->valid && (block->flags & CODEBLOCK_IN_DIRTY_LIST))
@@ -457,7 +457,7 @@ exec386_dynarec_dyn(void)
             if (!block->valid)
                 valid_block = 0;
         }
-        if (valid_block && block->page_mask2) {
+        if (UNLIKELY(valid_block && block->page_mask2)) {
             /* We don't want the second page to cause a page
                fault at this stage - that would break any
                code crossing a page boundary where the first
@@ -513,9 +513,9 @@ exec386_dynarec_dyn(void)
     }
 
 #    ifdef USE_NEW_DYNAREC
-    if (valid_block && (block->flags & CODEBLOCK_WAS_RECOMPILED))
+    if (LIKELY(valid_block && (block->flags & CODEBLOCK_WAS_RECOMPILED)))
 #    else
-    if (valid_block && block->was_recompiled)
+    if (LIKELY(valid_block && block->was_recompiled))
 #    endif
     {
         void (*code)(void) = (void *) &block->data[BLOCK_START];
@@ -570,7 +570,7 @@ exec386_dynarec_dyn(void)
                 x386_dynarec_log("[%04X:%08X] fetchdat = %08X\n", CS, cpu_state.pc, fetchdat);
 #    endif
 
-            if (!cpu_state.abrt) {
+            if (LIKELY(!cpu_state.abrt)) {
                 opcode = fetchdat & 0xFF;
                 fetchdat >>= 8;
 
@@ -580,7 +580,7 @@ exec386_dynarec_dyn(void)
 
                 x86_opcodes[(opcode | cpu_state.op32) & 0x3ff](fetchdat);
 
-                if (x86_was_reset)
+                if (UNLIKELY(x86_was_reset))
                     break;
             }
 
@@ -594,33 +594,33 @@ exec386_dynarec_dyn(void)
                    2 pages. In practice this limit will never be
                    hit, as host block size is only 2kB*/
 #    ifdef USE_NEW_DYNAREC
-            if (((cs + cpu_state.pc) - start_pc) >= max_block_size)
+            if (UNLIKELY(((cs + cpu_state.pc) - start_pc) >= max_block_size))
 #    else
-            if ((cpu_state.pc - start_pc) > 1000)
+            if (UNLIKELY((cpu_state.pc - start_pc) > 1000))
 #    endif
                 CPU_BLOCK_END();
 
-            if (cpu_init)
+            if (UNLIKELY(cpu_init))
                 CPU_BLOCK_END();
 
-            if (new_ne)
+            if (UNLIKELY(new_ne))
                 CPU_BLOCK_END();
-            if ((cpu_state.flags & T_FLAG) || (trap == 2))
+            if (UNLIKELY((cpu_state.flags & T_FLAG) || (trap == 2)))
                 CPU_BLOCK_END();
-            if (smi_line)
+            if (UNLIKELY(smi_line))
                 CPU_BLOCK_END();
-            if (nmi && nmi_enable && nmi_mask)
+            if (UNLIKELY(nmi && nmi_enable && nmi_mask))
                 CPU_BLOCK_END();
-            if ((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins)
+            if (UNLIKELY((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins))
                 CPU_BLOCK_END();
 
-            if (cpu_end_block_after_ins) {
+            if (UNLIKELY(cpu_end_block_after_ins)) {
                 cpu_end_block_after_ins--;
                 if (!cpu_end_block_after_ins)
                     CPU_BLOCK_END();
             }
 
-            if (cpu_state.abrt) {
+            if (UNLIKELY(cpu_state.abrt)) {
                 if (!(cpu_state.abrt & ABRT_EXPECTED))
                     codegen_block_remove();
                 CPU_BLOCK_END();
@@ -674,7 +674,7 @@ exec386_dynarec_dyn(void)
                 x386_dynarec_log("[%04X:%08X] fetchdat = %08X\n", CS, cpu_state.pc, fetchdat);
 #    endif
 
-            if (!cpu_state.abrt) {
+            if (LIKELY(!cpu_state.abrt)) {
                 opcode = fetchdat & 0xFF;
                 fetchdat >>= 8;
 
@@ -682,7 +682,7 @@ exec386_dynarec_dyn(void)
 
                 x86_opcodes[(opcode | cpu_state.op32) & 0x3ff](fetchdat);
 
-                if (x86_was_reset)
+                if (UNLIKELY(x86_was_reset))
                     break;
             }
 
@@ -696,33 +696,33 @@ exec386_dynarec_dyn(void)
                    2 pages. In practice this limit will never be
                    hit, as host block size is only 2kB */
 #    ifdef USE_NEW_DYNAREC
-            if (((cs + cpu_state.pc) - start_pc) >= max_block_size)
+            if (UNLIKELY(((cs + cpu_state.pc) - start_pc) >= max_block_size))
 #    else
-            if ((cpu_state.pc - start_pc) > 1000)
+            if (UNLIKELY((cpu_state.pc - start_pc) > 1000))
 #    endif
                 CPU_BLOCK_END();
 
-            if (cpu_init)
+            if (UNLIKELY(cpu_init))
                 CPU_BLOCK_END();
 
-            if (new_ne)
+            if (UNLIKELY(new_ne))
                 CPU_BLOCK_END();
-            if (cpu_state.flags & T_FLAG)
+            if (UNLIKELY(cpu_state.flags & T_FLAG))
                 CPU_BLOCK_END();
-            if (smi_line)
+            if (UNLIKELY(smi_line))
                 CPU_BLOCK_END();
-            if (nmi && nmi_enable && nmi_mask)
+            if (UNLIKELY(nmi && nmi_enable && nmi_mask))
                 CPU_BLOCK_END();
-            if ((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins)
+            if (UNLIKELY((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins))
                 CPU_BLOCK_END();
 
-            if (cpu_end_block_after_ins) {
+            if (UNLIKELY(cpu_end_block_after_ins)) {
                 cpu_end_block_after_ins--;
                 if (!cpu_end_block_after_ins)
                     CPU_BLOCK_END();
             }
 
-            if (cpu_state.abrt) {
+            if (UNLIKELY(cpu_state.abrt)) {
                 if (!(cpu_state.abrt & ABRT_EXPECTED))
                     codegen_block_remove();
                 CPU_BLOCK_END();
@@ -865,7 +865,7 @@ exec386_dynarec(int32_t cycs)
             }
 
             if (cycdiff > 0) {
-                if (TIMER_VAL_LESS_THAN_VAL(timer_target, (uint64_t) tsc))
+                if (UNLIKELY(TIMER_VAL_LESS_THAN_VAL(timer_target, (uint64_t) tsc)))
                     timer_process();
             }
 
@@ -934,7 +934,7 @@ exec386(int32_t cycs)
 
             fetchdat = fastreadl_fetch(cs + cpu_state.pc);
 
-            if (!cpu_state.abrt) {
+            if (LIKELY(!cpu_state.abrt)) {
 #ifdef ENABLE_386_LOG
                 if (in_smm)
                     x386_dynarec_log("[%04X:%08X] %08X\n", CS, cpu_state.pc, fetchdat);
@@ -952,7 +952,7 @@ exec386(int32_t cycs)
                 cpu_state.eflags &= ~(RF_FLAG);
 #endif
                 x86_opcodes[(opcode | cpu_state.op32) & 0x3ff](fetchdat);
-                if (x86_was_reset)
+                if (UNLIKELY(x86_was_reset))
                     break;
             }
 #ifdef ENABLE_386_LOG
@@ -978,7 +978,7 @@ exec386(int32_t cycs)
 #ifdef USE_DEBUG_REGS_486
 block_ended:
 #endif
-            if (cpu_state.abrt) {
+            if (UNLIKELY(cpu_state.abrt)) {
                 uint8_t oop    = opcode;
                 flags_rebuild();
                 tempi          = cpu_state.abrt & ABRT_MASK;
@@ -1007,7 +1007,7 @@ block_ended:
                 if (is386 && !x86_was_reset  && ins_fetch_fault)
                     x86gen();
 #endif
-            } else if (new_ne) {
+            } else if (UNLIKELY(new_ne)) {
                 flags_rebuild();
 
                 new_ne = 0;
@@ -1016,7 +1016,7 @@ block_ended:
 #endif
                 cpu_state.oldpc = cpu_state.pc;
                 x86_int(16);
-            } else if (trap) {
+            } else if (UNLIKELY(trap)) {
                 flags_rebuild();
 #ifdef USE_DEBUG_REGS_486
                 if (trap & 2) dr[6] |= 0x8000;
@@ -1031,9 +1031,9 @@ block_ended:
                 x86_int(1);
             }
 
-            if (smi_line)
+            if (UNLIKELY(smi_line))
                 enter_smm_check(0);
-            else if (nmi && nmi_enable && nmi_mask) {
+            else if (UNLIKELY(nmi && nmi_enable && nmi_mask)) {
 #ifndef USE_NEW_DYNAREC
                 oldcs = CS;
 #endif
@@ -1048,7 +1048,7 @@ block_ended:
 #else
                 nmi = 0;
 #endif
-            } else if ((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins) {
+            } else if (UNLIKELY((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins)) {
                 vector = picinterrupt();
                 if (vector != -1) {
                     flags_rebuild();
@@ -1079,7 +1079,7 @@ block_ended:
                     fatal("Life expired\n");
             }
 
-            if (TIMER_VAL_LESS_THAN_VAL(timer_target, (uint64_t) tsc))
+            if (UNLIKELY(TIMER_VAL_LESS_THAN_VAL(timer_target, (uint64_t) tsc)))
                 timer_process();
 
 #ifdef USE_GDBSTUB

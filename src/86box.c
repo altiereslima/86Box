@@ -2223,7 +2223,7 @@ do_pause(int p)
     dopause = !!p;
     if ((p == 1) && !old_p) {
         while (!ATOMIC_LOAD(pause_ack))
-            ;
+            plat_delay_ms(1);
     }
     ATOMIC_STORE(pause_ack, 0);
 }

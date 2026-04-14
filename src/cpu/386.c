@@ -280,7 +280,7 @@ exec386_2386(int32_t cycs)
                 CHECK_READ_CS(MIN(ol, 4));
             }
 
-            if (!cpu_state.abrt) {
+            if (LIKELY(!cpu_state.abrt)) {
 #ifdef ENABLE_386_LOG
                 if (in_smm)
                     x386_log("[%04X:%08X] %08X\n", CS, cpu_state.pc, fetchdat);
@@ -294,7 +294,7 @@ exec386_2386(int32_t cycs)
                     in_lock = 1;
                 x86_2386_opcodes[(opcode | cpu_state.op32) & 0x3ff](fetchdat);
                 in_lock = 0;
-                if (x86_was_reset)
+                if (UNLIKELY(x86_was_reset))
                     break;
             }
 #ifdef ENABLE_386_LOG
@@ -318,7 +318,7 @@ exec386_2386(int32_t cycs)
                 cpu_end_block_after_ins--;
 
 block_ended:
-            if (cpu_state.abrt) {
+            if (UNLIKELY(cpu_state.abrt)) {
                 flags_rebuild();
                 tempi          = cpu_state.abrt & ABRT_MASK;
                 cpu_state.abrt = 0;
@@ -343,7 +343,7 @@ block_ended:
 
                 if (is386 && !x86_was_reset  && ins_fetch_fault)
                     x86gen();
-            } else if (new_ne) {
+            } else if (UNLIKELY(new_ne)) {
                 flags_rebuild();
                 new_ne = 0;
 #ifndef USE_NEW_DYNAREC
@@ -351,7 +351,7 @@ block_ended:
 #endif
                 cpu_state.oldpc = cpu_state.pc;
                 x86_int(16);
-            } else if (trap) {
+            } else if (UNLIKELY(trap)) {
                 flags_rebuild();
                 if (trap & 2) dr[6] |= 0x8000;
                 if (trap & 1) dr[6] |= 0x4000;
@@ -364,9 +364,9 @@ block_ended:
                 x86_int(1);
             }
 
-            if (smi_line)
+            if (UNLIKELY(smi_line))
                 enter_smm_check(0);
-            else if (nmi && nmi_enable && nmi_mask) {
+            else if (UNLIKELY(nmi && nmi_enable && nmi_mask)) {
 #ifndef USE_NEW_DYNAREC
                 oldcs = CS;
 #endif
@@ -381,7 +381,7 @@ block_ended:
 #else
                 nmi = 0;
 #endif
-            } else if ((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins) {
+            } else if (UNLIKELY((cpu_state.flags & I_FLAG) && pic.int_pending && !cpu_end_block_after_ins)) {
                 vector = picinterrupt();
                 if (vector != -1) {
                     flags_rebuild();
@@ -412,7 +412,7 @@ block_ended:
                     fatal("Life expired\n");
             }
 
-            if (TIMER_VAL_LESS_THAN_VAL(timer_target, (uint64_t) tsc))
+            if (UNLIKELY(TIMER_VAL_LESS_THAN_VAL(timer_target, (uint64_t) tsc)))
                 timer_process();
 
 #ifdef USE_GDBSTUB

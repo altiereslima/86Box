@@ -381,16 +381,16 @@ fastreadw(uint32_t a)
     mem_debug_check_addr(a + 1, read_type);
     read_type = 4;
 #    endif
-    if ((a & 0xFFF) > 0xFFE) {
+    if (UNLIKELY((a & 0xFFF) > 0xFFE)) {
         val = fastreadb(a);
         val |= (fastreadb(a + 1) << 8);
         return val;
     }
-    if ((a >> 12) == pccache)
+    if (LIKELY((a >> 12) == pccache))
         return *((uint16_t *) (((uintptr_t) &pccache2[a] & 0x00000000ffffffffULL) | ((uintptr_t) &pccache2[0] & 0xffffffff00000000ULL)));
 
     t = getpccache(a);
-    if (cpu_state.abrt)
+    if (UNLIKELY(cpu_state.abrt))
         return 0;
 
     pccache  = a >> 12;
@@ -412,15 +412,15 @@ fastreadl(uint32_t a)
     }
     read_type = 4;
 #    endif
-    if ((a & 0xFFF) < 0xFFD) {
-        if ((a >> 12) != pccache) {
+    if (LIKELY((a & 0xFFF) < 0xFFD)) {
+        if (UNLIKELY((a >> 12) != pccache)) {
             t = getpccache(a);
-            if (cpu_state.abrt)
+            if (UNLIKELY(cpu_state.abrt))
                 return 0;
             pccache2 = t;
             pccache  = a >> 12;
         }
-        
+
         return *((uint32_t *) (((uintptr_t) &pccache2[a] & 0x00000000ffffffffULL) | ((uintptr_t) &pccache2[0] & 0xffffffff00000000ULL)));
     }
     val = fastreadw(a);
@@ -471,11 +471,11 @@ fastreadl_fetch(uint32_t a)
 {
     uint32_t ret;
 
-    if (cpu_16bitbus || ((a & 0xFFF) > 0xFFC)) {
+    if (UNLIKELY(cpu_16bitbus || ((a & 0xFFF) > 0xFFC))) {
         ret = fastreadw_fetch(a);
         if (!cpu_state.abrt && (opcode_length[ret & 0xff] > 2))
             ret |= ((uint32_t) fastreadw(a + 2) << 16);
-    } else if (cpu_state.abrt)
+    } else if (UNLIKELY(cpu_state.abrt))
         ret = 0;
     else {
         read_type = 1;
@@ -499,16 +499,16 @@ fastreadw_fetch(uint32_t a)
     mem_debug_check_addr(a + 1, read_type);
     read_type = 4;
 #    endif
-    if ((a & 0xFFF) > 0xFFE) {
+    if (UNLIKELY((a & 0xFFF) > 0xFFE)) {
         val = fastreadb(a);
         if (opcode_length[val & 0xff] > 1)
             val |= (fastreadb(a + 1) << 8);
         return val;
     }
-    if ((a >> 12) == pccache)
+    if (LIKELY((a >> 12) == pccache))
         return *((uint16_t *) (((uintptr_t) &pccache2[a] & 0x00000000ffffffffULL) | ((uintptr_t) &pccache2[0] & 0xffffffff00000000ULL)));
     t = getpccache(a);
-    if (cpu_state.abrt)
+    if (UNLIKELY(cpu_state.abrt))
         return 0;
 
     pccache  = a >> 12;
@@ -531,10 +531,10 @@ fastreadl_fetch(uint32_t a)
     }
     read_type = 4;
 #    endif
-    if ((a & 0xFFF) < 0xFFD) {
-        if ((a >> 12) != pccache) {
+    if (LIKELY((a & 0xFFF) < 0xFFD)) {
+        if (UNLIKELY((a >> 12) != pccache)) {
             t = getpccache(a);
-            if (cpu_state.abrt)
+            if (UNLIKELY(cpu_state.abrt))
                 return 0;
             pccache2 = t;
             pccache  = a >> 12;
