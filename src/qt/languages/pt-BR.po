@@ -809,10 +809,10 @@ msgid "Serial ports:"
 msgstr "Portas seriais:"
 
 msgid "Parallel ports"
-msgstr "Portas Paralelas"
+msgstr "Portas paralelas"
 
 msgid "Parallel ports:"
-msgstr "Portas Paralelas:"
+msgstr "Portas paralelas:"
 
 msgid "Storage controllers"
 msgstr "Controladores de armazenamento"
@@ -1001,7 +1001,7 @@ msgid "MO images"
 msgstr "Imagens magneto-ópticas"
 
 msgid "Welcome to 86Box!"
-msgstr "Bem-vindo ao 86Box!"
+msgstr "Boas-vindas ao 86Box!"
 
 msgid "Internal device"
 msgstr "Dispositivo interno"
@@ -1307,13 +1307,13 @@ msgid "Create directory failed"
 msgstr "Falha ao criar diretório"
 
 msgid "Unable to create the directory for the new system"
-msgstr "Impossível criar o diretório para o novo sistema"
+msgstr "Não foi possível criar o diretório para o novo sistema"
 
 msgid "Configuration write failed"
 msgstr "Falha ao gravar a configuração"
 
 msgid "Unable to open the configuration file at %1 for writing"
-msgstr "Impossível abrir o arquivo de configuração %1 para escrita"
+msgstr "Não foi possível o abrir o arquivo de configuração %1 para escrita"
 
 msgid "Error adding system"
 msgstr "Erro ao adicionar sistema"
