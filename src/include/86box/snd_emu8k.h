@@ -400,27 +400,13 @@ typedef struct emu8k_t {
     int32_t buffer[WTBUFLEN * 2];
 
     uint16_t addr;
-
-    /*
-     * OPT-2: Mutex protecting emu8k_update() against concurrent calls from
-     * the CPU emulation thread (emu8k_outw inline path for Cubic Player) and
-     * the dedicated wavetable audio thread. Declared as void* so this header
-     * does not need to pull in <86box/thread.h>.
-     */
-    void *update_mutex;
 } emu8k_t;
 
 void emu8k_change_addr(emu8k_t *emu8k, uint16_t emu_addr);
 void emu8k_init(emu8k_t *emu8k, uint16_t emu_addr, int onboard_ram);
 void emu8k_close(emu8k_t *emu8k);
 
-/*
- * OPT-2: emu8k_update() now takes an explicit target_pos (in samples within
- * the current wavetable buffer) rather than reading wavetable_pos_global
- * directly. This lets the audio thread generate a full buffer (target_pos =
- * WTBUFLEN) while the CPU thread can still request partial updates.
- */
-void emu8k_update(emu8k_t *emu8k, int target_pos);
+void emu8k_update(emu8k_t *emu8k);
 
 #define EMU8K_ROM_PATH "roms/sound/creative/awe32.raw"
 

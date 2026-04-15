@@ -110,12 +110,6 @@ static event_t      *sound_main_event        = NULL;
 static event_t      *sound_main_start_event  = NULL;
 static volatile int  sound_main_running      = 0;
 
-/* Wavetable audio synthesis thread (OPT-2): moves wavetable_poll() EMU8K heavy work off the CPU thread. */
-static thread_t     *wavetable_main_thread_h     = NULL;
-static event_t      *wavetable_main_event        = NULL;
-static event_t      *wavetable_main_start_event  = NULL;
-static volatile int  wavetable_main_running      = 0;
-
 static void (*filter_cd_audio)(int channel, double *buffer, void *priv) = NULL;
 static void *filter_cd_audio_p                                          = NULL;
 
@@ -555,9 +549,6 @@ sound_init(void)
 
     /* OPT-3: start the dedicated audio synthesis thread. */
     sound_main_thread_init();
-
-    /* OPT-2: start the dedicated wavetable (EMU8K) synthesis thread. */
-    wavetable_main_thread_init();
 }
 
 void
@@ -776,105 +767,6 @@ music_poll(UNUSED(void *priv))
     }
 }
 
-/*
- * OPT-2: Heavy EMU8K generation / conversion / host handoff, executed on the
- * dedicated wavetable audio thread (or inline as a fallback if the thread is
- * not running). The wavetable handlers internally serialize against the CPU
- * thread via the per-emu8k_t update_mutex set up in emu8k_init().
- */
-static void
-wavetable_poll_generate(void)
-{
-    int c;
-
-    memset(outbuffer_w, 0x00, WTBUFLEN * 2 * sizeof(int32_t));
-
-    for (c = 0; c < wavetable_handlers_num; c++)
-        wavetable_handlers[c].get_buffer(outbuffer_w, WTBUFLEN, wavetable_handlers[c].priv);
-
-    for (c = 0; c < WTBUFLEN * 2; c++) {
-        if (sound_is_float)
-            outbuffer_w_ex[c] = ((float) outbuffer_w[c]) / (float) 32768.0;
-        else {
-            if (outbuffer_w[c] > 32767)
-                outbuffer_w[c] = 32767;
-            if (outbuffer_w[c] < -32768)
-                outbuffer_w[c] = -32768;
-
-            outbuffer_w_ex_int16[c] = (int16_t) outbuffer_w[c];
-        }
-    }
-
-    if (sound_is_float)
-        givealbuffer_wt(outbuffer_w_ex);
-    else
-        givealbuffer_wt(outbuffer_w_ex_int16);
-}
-
-/*
- * OPT-2: Dedicated wavetable audio thread. Waits for the CPU-side
- * wavetable_poll() to signal that a buffer of samples is due, then runs the
- * heavy EMU8K synthesis / conversion / host handoff off the CPU thread.
- */
-static void
-wavetable_main_thread(UNUSED(void *param))
-{
-    thread_set_event(wavetable_main_start_event);
-
-    while (wavetable_main_running) {
-        thread_wait_event(wavetable_main_event, -1);
-        thread_reset_event(wavetable_main_event);
-
-        if (!wavetable_main_running)
-            break;
-
-        wavetable_poll_generate();
-    }
-}
-
-void
-wavetable_main_thread_init(void)
-{
-    if (wavetable_main_running)
-        return;
-
-    wavetable_main_running     = 1;
-    wavetable_main_start_event = thread_create_event();
-    wavetable_main_event       = thread_create_event();
-    wavetable_main_thread_h    = thread_create(wavetable_main_thread, NULL);
-
-    sound_log("Waiting for wavetable main thread start event...\n");
-    thread_wait_event(wavetable_main_start_event, -1);
-    thread_reset_event(wavetable_main_start_event);
-    sound_log("Wavetable main thread started.\n");
-}
-
-void
-wavetable_main_thread_end(void)
-{
-    if (!wavetable_main_running)
-        return;
-
-    wavetable_main_running = 0;
-
-    sound_log("Waiting for wavetable main thread to terminate...\n");
-    thread_set_event(wavetable_main_event);
-    thread_wait(wavetable_main_thread_h);
-    sound_log("Wavetable main thread terminated.\n");
-
-    if (wavetable_main_event) {
-        thread_destroy_event(wavetable_main_event);
-        wavetable_main_event = NULL;
-    }
-
-    if (wavetable_main_start_event) {
-        thread_destroy_event(wavetable_main_start_event);
-        wavetable_main_start_event = NULL;
-    }
-
-    wavetable_main_thread_h = NULL;
-}
-
 void
 wavetable_poll(UNUSED(void *priv))
 {
@@ -882,17 +774,30 @@ wavetable_poll(UNUSED(void *priv))
 
     wavetable_pos_global++;
     if (wavetable_pos_global == WTBUFLEN) {
-        /*
-         * OPT-2: If the wavetable audio thread is running, just signal it
-         * and return quickly so the CPU thread is not blocked by the EMU8K
-         * synthesis inside wavetable_handlers[]. If the thread is not
-         * available (early boot, shutdown, fallback), run the generator
-         * inline to preserve the original behavior.
-         */
-        if (wavetable_main_running)
-            thread_set_event(wavetable_main_event);
+        int c;
+
+        memset(outbuffer_w, 0x00, WTBUFLEN * 2 * sizeof(int32_t));
+
+        for (c = 0; c < wavetable_handlers_num; c++)
+            wavetable_handlers[c].get_buffer(outbuffer_w, WTBUFLEN, wavetable_handlers[c].priv);
+
+        for (c = 0; c < WTBUFLEN * 2; c++) {
+            if (sound_is_float)
+                outbuffer_w_ex[c] = ((float) outbuffer_w[c]) / (float) 32768.0;
+            else {
+                if (outbuffer_w[c] > 32767)
+                    outbuffer_w[c] = 32767;
+                if (outbuffer_w[c] < -32768)
+                    outbuffer_w[c] = -32768;
+
+                outbuffer_w_ex_int16[c] = (int16_t) outbuffer_w[c];
+            }
+        }
+
+        if (sound_is_float)
+            givealbuffer_wt(outbuffer_w_ex);
         else
-            wavetable_poll_generate();
+            givealbuffer_wt(outbuffer_w_ex_int16);
 
         wavetable_pos_global = 0;
     }

@@ -40,7 +40,6 @@
 #include <86box/rom.h>
 #include <86box/sound.h>
 #include "cpu.h"
-#include <86box/thread.h>
 #include <86box/timer.h>
 #include <86box/snd_sb.h>
 #include <86box/plat_unused.h>
@@ -519,16 +518,7 @@ sb_get_wavetable_buffer_goldfinch(int32_t *buffer, const int len, void *priv)
 {
     goldfinch_t *goldfinch = (goldfinch_t *) priv;
 
-    /*
-     * OPT-2: This handler now runs on the dedicated wavetable audio thread
-     * (see sound.c:wavetable_main_thread). Serialize against any concurrent
-     * emu8k_update() coming from the CPU thread (emu8k_outw / Cubic Player),
-     * and force a full-buffer (WTBUFLEN) generation instead of relying on
-     * wavetable_pos_global, which may already have been reset by the timer.
-     */
-    if (goldfinch->emu8k.update_mutex)
-        thread_wait_mutex((mutex_t *) goldfinch->emu8k.update_mutex);
-    emu8k_update(&goldfinch->emu8k, WTBUFLEN);
+    emu8k_update(&goldfinch->emu8k);
 
     for (int c = 0; c < len * 2; c += 2) {
         double out_l = 0.0;
@@ -542,8 +532,6 @@ sb_get_wavetable_buffer_goldfinch(int32_t *buffer, const int len, void *priv)
     }
 
     goldfinch->emu8k.pos = 0;
-    if (goldfinch->emu8k.update_mutex)
-        thread_release_mutex((mutex_t *) goldfinch->emu8k.update_mutex);
 }
 
 static void
@@ -553,14 +541,7 @@ sb_get_wavetable_buffer_sb16_awe32(int32_t *buffer, const int len, void *priv)
     const sb_ct1745_mixer_t *mixer = &sb->mixer_sb16;
     double                   bass_treble;
 
-    /*
-     * OPT-2: Same reasoning as sb_get_wavetable_buffer_goldfinch. Serialize
-     * against the CPU-side inline emu8k_update() path and request a full
-     * buffer (WTBUFLEN) from the audio thread.
-     */
-    if (sb->emu8k.update_mutex)
-        thread_wait_mutex((mutex_t *) sb->emu8k.update_mutex);
-    emu8k_update(&sb->emu8k, WTBUFLEN);
+    emu8k_update(&sb->emu8k);
 
     for (int c = 0; c < len * 2; c += 2) {
         double out_l = 0.0;
@@ -615,8 +596,6 @@ sb_get_wavetable_buffer_sb16_awe32(int32_t *buffer, const int len, void *priv)
     }
 
     sb->emu8k.pos = 0;
-    if (sb->emu8k.update_mutex)
-        thread_release_mutex((mutex_t *) sb->emu8k.update_mutex);
 }
 
 void
