@@ -38,6 +38,7 @@
 #include <86box/scsi_device.h>
 #include <86box/scsi_cdrom.h>
 #include <86box/sound.h>
+#include <86box/thread.h>
 #include <86box/ui.h>
 
 #define RAW_SECTOR_SIZE    2352
@@ -368,38 +369,82 @@ read_data(cdrom_t *dev, const uint32_t lba, int check)
     int ret  = 1;
     int form = 0;
 
-    if (dev->cached_sector != lba) {
+    /* Check 1: single-sector cache (existing) */
+    if (dev->cached_sector == (int32_t) lba)
+        return ret;
+
+    /* Check 2: is lba in the prefetch buffer? */
+    if (dev->io_thread && ATOMIC_LOAD(dev->prefetch_ready)) {
+        int32_t offset = (int32_t) lba - dev->prefetch_lba_start;
+        if (offset >= 0 && offset < ATOMIC_LOAD(dev->prefetch_count)) {
+            memcpy(dev->raw_buffer[dev->cur_buf ^ 1],
+                   dev->prefetch_buf[offset],
+                   sizeof(dev->raw_buffer[0]));
+            dev->cached_sector = lba;
+
+            /* Trigger next-block prefetch when half consumed */
+            if (offset >= CDROM_PREFETCH_SECTORS / 2) {
+                ATOMIC_STORE(dev->prefetch_request_lba,
+                             dev->prefetch_lba_start + CDROM_PREFETCH_SECTORS);
+                ATOMIC_STORE(dev->prefetch_ready, 0);
+                thread_set_event(dev->io_wake_event);
+            }
+
+            goto check_sector;
+        }
+    }
+
+    /* Fallback: read via I/O thread (or sync if no thread) */
+    if (dev->io_thread) {
+        /* Request via thread and wait */
+        ATOMIC_STORE(dev->prefetch_request_lba, (int32_t) lba);
+        ATOMIC_STORE(dev->prefetch_ready, 0);
+        thread_set_event(dev->io_wake_event);
+        thread_wait_event(dev->io_done_event, -1);
+        thread_reset_event(dev->io_done_event);
+
+        if (ATOMIC_LOAD(dev->prefetch_count) > 0) {
+            memcpy(dev->raw_buffer[dev->cur_buf ^ 1],
+                   dev->prefetch_buf[0],
+                   sizeof(dev->raw_buffer[0]));
+            dev->cached_sector = lba;
+        } else {
+            ret = 0;
+        }
+    } else {
+        /* Original synchronous path (no thread) */
         dev->cached_sector = lba;
 
         ret = dev->ops->read_sector(dev->local,
                                     dev->raw_buffer[dev->cur_buf ^ 1], lba);
-
-        if ((ret > 0) && check) {
-            if (dev->mode2) {
-                if (dev->raw_buffer[dev->cur_buf ^ 1][0x000f] == 0x01)
-                    /*
-                       Use Mode 1, since evidently specification-violating
-                       discs exist.
-                     */
-                    dev->mode2 = 0;
-                else if (dev->raw_buffer[dev->cur_buf ^ 1][0x0012] ==
-                         dev->raw_buffer[dev->cur_buf ^ 1][0x0016])
-                    form = ((dev->raw_buffer[dev->cur_buf ^ 1][0x0012] &
-                            0x20) >> 5) + 1;
-            } else if (dev->raw_buffer[dev->cur_buf ^ 1][0x000f] == 0x02)
-                dev->mode2 = 1;
-
-            if (!cdrom_is_sector_good(dev, dev->raw_buffer[dev->cur_buf ^ 1], dev->mode2, form))
-                ret = -1;
-        }
-
-        if (ret <= 0) {
-            memset(dev->raw_buffer[dev->cur_buf ^ 1], 0x00, 2448);
-            dev->cached_sector = -1;
-        }
-
-        dev->cur_buf ^= 1;
     }
+
+check_sector:
+    if ((ret > 0) && check) {
+        if (dev->mode2) {
+            if (dev->raw_buffer[dev->cur_buf ^ 1][0x000f] == 0x01)
+                /*
+                   Use Mode 1, since evidently specification-violating
+                   discs exist.
+                 */
+                dev->mode2 = 0;
+            else if (dev->raw_buffer[dev->cur_buf ^ 1][0x0012] ==
+                     dev->raw_buffer[dev->cur_buf ^ 1][0x0016])
+                form = ((dev->raw_buffer[dev->cur_buf ^ 1][0x0012] &
+                        0x20) >> 5) + 1;
+        } else if (dev->raw_buffer[dev->cur_buf ^ 1][0x000f] == 0x02)
+            dev->mode2 = 1;
+
+        if (!cdrom_is_sector_good(dev, dev->raw_buffer[dev->cur_buf ^ 1], dev->mode2, form))
+            ret = -1;
+    }
+
+    if (ret <= 0) {
+        memset(dev->raw_buffer[dev->cur_buf ^ 1], 0x00, 2448);
+        dev->cached_sector = -1;
+    }
+
+    dev->cur_buf ^= 1;
 
     return ret;
 }
@@ -1049,6 +1094,20 @@ cdrom_unload(cdrom_t *dev)
 {
     if (dev->log != NULL) {
         cdrom_log(dev->log, "CDROM: cdrom_unload(%s)\n", dev->image_path);
+    }
+
+    /* OPT-4: Stop I/O thread before closing the image */
+    if (dev->io_running) {
+        dev->io_running = 0;
+        thread_set_event(dev->io_wake_event);
+        thread_wait(dev->io_thread);
+        thread_destroy_event(dev->io_wake_event);
+        thread_destroy_event(dev->io_done_event);
+        thread_destroy_event(dev->io_start_event);
+        dev->io_thread      = NULL;
+        dev->io_wake_event  = NULL;
+        dev->io_done_event  = NULL;
+        dev->io_start_event = NULL;
     }
 
     dev->cd_status     = CD_STATUS_EMPTY;
@@ -3001,6 +3060,9 @@ cdrom_update_status(cdrom_t *dev)
     }
 }
 
+/* OPT-4: Forward declaration for I/O prefetch thread */
+static void cdrom_io_thread_fn(void *priv);
+
 int
 cdrom_load(cdrom_t *dev, const char *fn, const int skip_insert)
 {
@@ -3048,6 +3110,20 @@ cdrom_load(cdrom_t *dev, const char *fn, const int skip_insert)
 
         cdrom_log(dev->log, "CD-ROM capacity: %i sectors (%" PRIi64 " bytes)\n",
                   dev->cdrom_capacity, ((uint64_t) dev->cdrom_capacity) << 11ULL);
+
+        /* OPT-4: Launch I/O prefetch thread */
+        dev->prefetch_lba_start  = -1;
+        dev->prefetch_count      = 0;
+        dev->prefetch_request_lba = -1;
+        dev->prefetch_ready      = 0;
+        dev->io_start_event = thread_create_event();
+        dev->io_wake_event  = thread_create_event();
+        dev->io_done_event  = thread_create_event();
+        dev->io_running     = 1;
+        dev->io_thread      = thread_create(cdrom_io_thread_fn, dev);
+
+        thread_wait_event(dev->io_start_event, -1);
+        thread_reset_event(dev->io_start_event);
     }
 
 #ifdef ENABLE_CDROM_LOG
@@ -3064,6 +3140,45 @@ cdrom_load(cdrom_t *dev, const char *fn, const int skip_insert)
     }
 
     return ret;
+}
+
+/* ================ OPT-4: CD-ROM I/O prefetch thread ================ */
+static void
+cdrom_io_thread_fn(void *priv)
+{
+    cdrom_t *dev = (cdrom_t *) priv;
+
+    thread_set_event(dev->io_start_event);
+
+    while (dev->io_running) {
+        thread_wait_event(dev->io_wake_event, 100);  /* 100ms timeout */
+        thread_reset_event(dev->io_wake_event);
+
+        if (!dev->io_running)
+            break;
+
+        int32_t lba = ATOMIC_LOAD(dev->prefetch_request_lba);
+        if (lba < 0)
+            continue;
+
+        /* Read up to CDROM_PREFETCH_SECTORS sequential sectors */
+        int count = 0;
+        for (int i = 0; i < CDROM_PREFETCH_SECTORS; i++) {
+            if (!dev->ops || !dev->local)
+                break;
+            int ret = dev->ops->read_sector(dev->local,
+                          dev->prefetch_buf[i], lba + i);
+            if (ret <= 0)
+                break;
+            count++;
+        }
+
+        dev->prefetch_lba_start = lba;
+        ATOMIC_STORE(dev->prefetch_count, count);
+        ATOMIC_STORE(dev->prefetch_ready, 1);
+        ATOMIC_STORE(dev->prefetch_request_lba, -1);  /* consumed */
+        thread_set_event(dev->io_done_event);
+    }
 }
 
 /* Peform a master init on the entire module. */

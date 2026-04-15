@@ -388,6 +388,22 @@ typedef struct cdrom {
 
     uint8_t            p_parity[172];
     uint8_t            q_parity[104];
+
+    /* ---- OPT-4: Read-ahead / async I/O fields ---- */
+#define CDROM_PREFETCH_SECTORS  16
+#define CDROM_SECTOR_MAX_SIZE   2448
+
+    thread_t    *io_thread;
+    event_t     *io_wake_event;
+    event_t     *io_done_event;
+    event_t     *io_start_event;
+    volatile int io_running;
+
+    uint8_t      prefetch_buf[CDROM_PREFETCH_SECTORS][CDROM_SECTOR_MAX_SIZE];
+    int32_t      prefetch_lba_start;      /* first LBA in buffer */
+    volatile int32_t prefetch_count;      /* valid sector count */
+    volatile int32_t prefetch_request_lba;/* next LBA requested by CPU */
+    volatile int prefetch_ready;
 } cdrom_t;
 
 extern cdrom_t cdrom[CDROM_NUM];
