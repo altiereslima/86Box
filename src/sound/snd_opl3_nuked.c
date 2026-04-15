@@ -47,6 +47,7 @@
 #include "cpu.h"
 #include <86box/timer.h>
 #include <86box/device.h>
+#include <86box/thread.h>
 #include <86box/snd_opl.h>
 #include <86box/snd_opl3_nuked.h>
 
@@ -1540,13 +1541,12 @@ nuked_opl3_drv_set_do_cycles(void *priv, int8_t do_cycles)
         dev->flags &= ~FLAG_CYCLES;
 }
 
-static int32_t *
-nuked_opl3_drv_update(void *priv)
+/* OPT-3: Inline synthesis fallback (original logic, used when audio_running == 0) */
+static void
+nuked_opl3_synth_inline_music(nuked_opl3_drv_t *dev)
 {
-    nuked_opl3_drv_t *dev = (nuked_opl3_drv_t *) priv;
-
     if (dev->pos >= music_pos_global)
-        return dev->buffer;
+        return;
 
     OPL3_GenerateStream(&dev->opl,
                         &dev->buffer[dev->pos * 2],
@@ -1556,17 +1556,13 @@ nuked_opl3_drv_update(void *priv)
         dev->buffer[dev->pos * 2] /= 2;
         dev->buffer[(dev->pos * 2) + 1] /= 2;
     }
-
-    return dev->buffer;
 }
 
-static int32_t *
-nuked_opl3_drv_update_48k(void *priv)
+static void
+nuked_opl3_synth_inline_48k(nuked_opl3_drv_t *dev)
 {
-    nuked_opl3_drv_t *dev = (nuked_opl3_drv_t *) priv;
-
     if (dev->pos >= sound_pos_global)
-        return dev->buffer;
+        return;
 
     OPL3_GenerateResampledStream(&dev->opl,
                                  &dev->buffer[dev->pos * 2],
@@ -1576,7 +1572,71 @@ nuked_opl3_drv_update_48k(void *priv)
         dev->buffer[dev->pos * 2] /= 2;
         dev->buffer[(dev->pos * 2) + 1] /= 2;
     }
+}
 
+/* OPT-3: Pull-based barrier update for MUSIC_FREQ (49716 Hz) path */
+static int32_t *
+nuked_opl3_drv_update(void *priv)
+{
+    nuked_opl3_drv_t *dev = (nuked_opl3_drv_t *) priv;
+
+    if (!dev->audio_running) {
+        /* Fallback inline (original behavior) */
+        nuked_opl3_synth_inline_music(dev);
+        return dev->buffer;
+    }
+
+    /* Publish the current tsc for the audio thread and wake it */
+    ATOMIC_STORE(dev->tsc_cpu_observed, tsc);
+    thread_set_event(dev->audio_work_event);
+
+    /* Barrier: block until audio thread finishes the buffer */
+    while (!ATOMIC_LOAD(dev->buffer_ready)) {
+        thread_wait_event(dev->audio_done_event, -1);
+        thread_reset_event(dev->audio_done_event);
+    }
+    ATOMIC_STORE(dev->buffer_ready, 0);
+
+    /* Copy handoff_buf to dev->buffer (what the sound_handler consumes) */
+    thread_wait_mutex(dev->handoff_mutex);
+    memcpy(dev->buffer, dev->handoff_buf,
+           MUSICBUFLEN * 2 * sizeof(int32_t));
+    thread_release_mutex(dev->handoff_mutex);
+
+    dev->pos = music_pos_global;  /* maintain invariant */
+    return dev->buffer;
+}
+
+/* OPT-3: Pull-based barrier update for SOUND_FREQ (48000 Hz) path */
+static int32_t *
+nuked_opl3_drv_update_48k(void *priv)
+{
+    nuked_opl3_drv_t *dev = (nuked_opl3_drv_t *) priv;
+
+    if (!dev->audio_running) {
+        /* Fallback inline (original behavior) */
+        nuked_opl3_synth_inline_48k(dev);
+        return dev->buffer;
+    }
+
+    /* Publish the current tsc for the audio thread and wake it */
+    ATOMIC_STORE(dev->tsc_cpu_observed, tsc);
+    thread_set_event(dev->audio_work_event);
+
+    /* Barrier: block until audio thread finishes the buffer */
+    while (!ATOMIC_LOAD(dev->buffer_ready)) {
+        thread_wait_event(dev->audio_done_event, -1);
+        thread_reset_event(dev->audio_done_event);
+    }
+    ATOMIC_STORE(dev->buffer_ready, 0);
+
+    /* Copy handoff_buf to dev->buffer (what the sound_handler consumes) */
+    thread_wait_mutex(dev->handoff_mutex);
+    memcpy(dev->buffer, dev->handoff_buf,
+           SOUNDBUFLEN * 2 * sizeof(int32_t));
+    thread_release_mutex(dev->handoff_mutex);
+
+    dev->pos = sound_pos_global;  /* maintain invariant */
     return dev->buffer;
 }
 
@@ -1588,7 +1648,12 @@ nuked_opl3_drv_read(uint16_t port, void *priv)
     if (dev->flags & FLAG_CYCLES)
         cycles -= ((int) (isa_timing * 8));
 
-    dev->update(dev);
+    /* OPT-3: Do NOT call dev->update(dev) here anymore.
+       The status register (timer IRQ bits) is maintained inline by the
+       timer callbacks (nuked_opl3_timer_tick) which run on the CPU thread.
+       The read does not depend on synthesis state. */
+    if (!dev->audio_running)
+        dev->update(dev);
 
     uint8_t ret = 0xff;
 
@@ -1608,22 +1673,65 @@ nuked_opl3_drv_write(uint16_t port, uint8_t val, void *priv)
 {
     nuked_opl3_drv_t *dev = (nuked_opl3_drv_t *) priv;
 
-    dev->update(dev);
+    if (!dev->audio_running) {
+        /* Fallback: audio thread disabled, use original synchronous path */
+        dev->update(dev);
 
+        if ((port & 0x0001) == 0x0001) {
+            OPL3_WriteRegBuffered(&dev->opl, dev->port, val);
+
+            switch (dev->port) {
+                case 0x002: // Timer 1
+                    dev->timer_count[0] = val;
+                    nuked_opl3_log("Timer 0 count now: %i\n", dev->timer_count[0]);
+                    break;
+
+                case 0x003: // Timer 2
+                    dev->timer_count[1] = val;
+                    nuked_opl3_log("Timer 1 count now: %i\n", dev->timer_count[1]);
+                    break;
+
+                case 0x004: // Timer control
+                    if (val & CTRL_RESET) {
+                        nuked_opl3_log("Resetting timer status...\n");
+                        dev->status &= ~STAT_TMR_OVER;
+                    } else {
+                        dev->timer_ctrl = val;
+                        nuked_opl3_timer_control(dev, 0, val & CTRL_TMR1_START);
+                        nuked_opl3_timer_control(dev, 1, val & CTRL_TMR2_START);
+                        nuked_opl3_log("Status mask now %02X (val = %02X)\n", (val & ~CTRL_TMR_MASK) & CTRL_TMR_MASK, val);
+                    }
+                    break;
+
+                case 0x105:
+                    dev->opl.newm = val & 0x01;
+                    break;
+
+                default:
+                    break;
+            }
+        } else {
+            dev->port = nuked_opl3_write_addr(&dev->opl, port, val) & 0x01ff;
+
+            if (!(dev->flags & FLAG_OPL3))
+                dev->port &= 0x00ff;
+        }
+        return;
+    }
+
+    /* ===== OPT-3: Audio thread active - enqueue write in ring buffer ===== */
+
+    /* Timer/status logic stays inline on CPU thread (does not depend on synthesis) */
     if ((port & 0x0001) == 0x0001) {
-        OPL3_WriteRegBuffered(&dev->opl, dev->port, val);
-
         switch (dev->port) {
             case 0x002: // Timer 1
                 dev->timer_count[0] = val;
                 nuked_opl3_log("Timer 0 count now: %i\n", dev->timer_count[0]);
                 break;
-
             case 0x003: // Timer 2
                 dev->timer_count[1] = val;
                 nuked_opl3_log("Timer 1 count now: %i\n", dev->timer_count[1]);
                 break;
-
             case 0x004: // Timer control
                 if (val & CTRL_RESET) {
                     nuked_opl3_log("Resetting timer status...\n");
@@ -1635,19 +1743,40 @@ nuked_opl3_drv_write(uint16_t port, uint8_t val, void *priv)
                     nuked_opl3_log("Status mask now %02X (val = %02X)\n", (val & ~CTRL_TMR_MASK) & CTRL_TMR_MASK, val);
                 }
                 break;
-
             case 0x105:
-                dev->opl.newm = val & 0x01;
+                /* newm is a config flag, not synthesis state - safe to set here
+                   AND enqueue for audio thread so OPL chip state stays consistent */
                 break;
-
             default:
                 break;
         }
     } else {
+        /* Address latch write: must be processed on CPU side so we know which
+           register the next data write targets. Audio thread doesn't need this. */
         dev->port = nuked_opl3_write_addr(&dev->opl, port, val) & 0x01ff;
-
         if (!(dev->flags & FLAG_OPL3))
             dev->port &= 0x00ff;
+        return;  /* address latch does NOT go to the ring - no synthesis effect */
+    }
+
+    /* Enqueue the data write for the audio thread to apply */
+    {
+        uint32_t wp = dev->cmd_write_pos;
+        uint32_t rp = ATOMIC_LOAD(dev->cmd_read_pos);
+        if (UNLIKELY((wp - rp) >= OPL_CMD_RING_SIZE)) {
+            /* Ring overflow: sync drain. Signal audio thread, wait for it
+               to drain up to current tsc, then retry. */
+            ATOMIC_STORE(dev->tsc_cpu_observed, tsc);
+            thread_set_event(dev->audio_work_event);
+            thread_wait_event(dev->audio_done_event, -1);
+            thread_reset_event(dev->audio_done_event);
+            wp = dev->cmd_write_pos;
+        }
+        dev->cmd_ring[wp & OPL_CMD_RING_MASK].tsc  = tsc;
+        dev->cmd_ring[wp & OPL_CMD_RING_MASK].port = dev->port;
+        dev->cmd_ring[wp & OPL_CMD_RING_MASK].val  = val;
+        dev->cmd_ring[wp & OPL_CMD_RING_MASK].pad  = 0;
+        ATOMIC_STORE(dev->cmd_write_pos, wp + 1);
     }
 }
 
@@ -1659,10 +1788,91 @@ nuked_opl3_drv_reset_buffer(void *priv)
     dev->pos = 0;
 }
 
+/* ================ OPT-3: Audio synthesis thread ================ */
+static void
+nuked_opl3_audio_thread_fn(void *priv)
+{
+    nuked_opl3_drv_t *dev = (nuked_opl3_drv_t *) priv;
+
+    thread_set_event(dev->audio_start_event);
+
+    while (dev->audio_running) {
+        thread_wait_event(dev->audio_work_event, -1);
+        thread_reset_event(dev->audio_work_event);
+
+        if (!dev->audio_running)
+            break;
+
+        uint64_t limit = ATOMIC_LOAD(dev->tsc_cpu_observed);
+
+        /* 1. Drain writes in order up to tsc_limit */
+        {
+            uint32_t rp = dev->cmd_read_pos;
+            uint32_t wp = ATOMIC_LOAD(dev->cmd_write_pos);
+            while (rp != wp) {
+                opl_cmd_t *c = &dev->cmd_ring[rp & OPL_CMD_RING_MASK];
+                if (c->tsc > limit)
+                    break;
+                OPL3_WriteRegBuffered(&dev->opl, c->port, c->val);
+                rp++;
+            }
+            ATOMIC_STORE(dev->cmd_read_pos, rp);
+        }
+
+        /* 2. Synthesize up to the pos_global target */
+        if (dev->is_48k) {
+            int target = sound_pos_global;
+            if (dev->pos < target) {
+                OPL3_GenerateResampledStream(&dev->opl,
+                    &dev->buffer[dev->pos * 2], target - dev->pos);
+                for (; dev->pos < target; dev->pos++) {
+                    dev->buffer[dev->pos * 2]       /= 2;
+                    dev->buffer[(dev->pos * 2) + 1] /= 2;
+                }
+            }
+        } else {
+            int target = music_pos_global;
+            if (dev->pos < target) {
+                OPL3_GenerateStream(&dev->opl,
+                    &dev->buffer[dev->pos * 2], target - dev->pos);
+                for (; dev->pos < target; dev->pos++) {
+                    dev->buffer[dev->pos * 2]       /= 2;
+                    dev->buffer[(dev->pos * 2) + 1] /= 2;
+                }
+            }
+        }
+
+        /* 3. Handoff only if we reached the end of the buffer */
+        {
+            int buflen = dev->is_48k ? SOUNDBUFLEN : MUSICBUFLEN;
+            if (dev->pos >= buflen) {
+                thread_wait_mutex(dev->handoff_mutex);
+                memcpy(dev->handoff_buf, dev->buffer,
+                       buflen * 2 * sizeof(int32_t));
+                thread_release_mutex(dev->handoff_mutex);
+                dev->pos = 0;
+                ATOMIC_STORE(dev->buffer_ready, 1);
+                thread_set_event(dev->audio_done_event);
+            }
+        }
+    }
+}
+
 static void
 nuked_opl3_drv_close(void *priv)
 {
     nuked_opl3_drv_t *dev = (nuked_opl3_drv_t *) priv;
+
+    /* OPT-3: Shut down audio thread cleanly */
+    if (dev->audio_running) {
+        dev->audio_running = 0;
+        thread_set_event(dev->audio_work_event);
+        thread_wait(dev->audio_thread_h);
+        thread_destroy_event(dev->audio_work_event);
+        thread_destroy_event(dev->audio_done_event);
+        thread_destroy_event(dev->audio_start_event);
+        thread_close_mutex(dev->handoff_mutex);
+    }
 
     free(dev);
 }
@@ -1690,6 +1900,21 @@ nuked_opl3_drv_init(const device_t *info)
 
     timer_add(&dev->timers[0], nuked_opl3_timer_1, dev, 0);
     timer_add(&dev->timers[1], nuked_opl3_timer_2, dev, 0);
+
+    /* OPT-3: Launch audio synthesis thread */
+    dev->cmd_write_pos     = 0;
+    dev->cmd_read_pos      = 0;
+    dev->buffer_ready      = 0;
+    dev->tsc_cpu_observed  = 0;
+    dev->handoff_mutex     = thread_create_mutex();
+    dev->audio_start_event = thread_create_event();
+    dev->audio_work_event  = thread_create_event();
+    dev->audio_done_event  = thread_create_event();
+    dev->audio_running     = 1;
+    dev->audio_thread_h    = thread_create(nuked_opl3_audio_thread_fn, dev);
+
+    thread_wait_event(dev->audio_start_event, -1);
+    thread_reset_event(dev->audio_start_event);
 
     return dev;
 }

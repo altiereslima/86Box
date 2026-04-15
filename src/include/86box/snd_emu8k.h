@@ -400,6 +400,17 @@ typedef struct emu8k_t {
     int32_t buffer[WTBUFLEN * 2];
 
     uint16_t addr;
+
+    /* ---- OPT-2: Audio thread decoupling fields ---- */
+    int32_t  handoff_buf[WTBUFLEN * 2];
+    mutex_t *handoff_mutex;
+
+    thread_t    *audio_thread_h;
+    event_t     *audio_work_event;    /* CPU -> audio: "work available" */
+    event_t     *audio_done_event;    /* audio -> CPU: "buffer ready" */
+    event_t     *audio_start_event;   /* startup handshake */
+    volatile int audio_running;
+    volatile int buffer_ready;
 } emu8k_t;
 
 void emu8k_change_addr(emu8k_t *emu8k, uint16_t emu_addr);

@@ -15,6 +15,7 @@
 #include <86box/mem.h>
 #include <86box/rom.h>
 #include <86box/sound.h>
+#include <86box/thread.h>
 #include <86box/snd_emu8k.h>
 #include <86box/timer.h>
 #include <86box/plat_unused.h>
@@ -795,7 +796,11 @@ emu8k_outw(uint16_t addr, uint16_t val, void *priv)
 
     /*TODO: I would like to not call this here, but i found it was needed or else cubic player would not finish opening (take a looot more of time than usual).
      * Basically, being here means that the audio is generated in the emulation thread, instead of the audio thread.*/
-    emu8k_update(emu8k);
+    /* OPT-2: Only call catch-up synthesis when audio thread is NOT running.
+       When the audio thread is active, synthesis happens on the audio thread
+       and the CPU thread only writes registers. */
+    if (!emu8k->audio_running)
+        emu8k_update(emu8k);
 
 #ifdef EMU8K_DEBUG_REGISTERS
     if (addr == 0xE22) {
@@ -1755,10 +1760,11 @@ int32_t old_pitch[32] = { 0 };
 int32_t old_cut[32]   = { 0 };
 int32_t old_vol[32]   = { 0 };
 #endif
-void
-emu8k_update(emu8k_t *emu8k)
+/* OPT-2: Core synthesis logic extracted for use by both inline fallback and audio thread */
+static void
+emu8k_synth_core(emu8k_t *emu8k, int target_pos)
 {
-    if (emu8k->pos >= wavetable_pos_global)
+    if (emu8k->pos >= target_pos)
         return;
 
     int32_t       *buf;
@@ -1767,16 +1773,16 @@ emu8k_update(emu8k_t *emu8k)
 
     /* Clean the buffers since we will accumulate into them. */
     buf = &emu8k->buffer[emu8k->pos * 2];
-    memset(buf, 0, 2 * (wavetable_pos_global - emu8k->pos) * sizeof(emu8k->buffer[0]));
-    memset(&emu8k->chorus_in_buffer[emu8k->pos], 0, (wavetable_pos_global - emu8k->pos) * sizeof(emu8k->chorus_in_buffer[0]));
-    memset(&emu8k->reverb_in_buffer[emu8k->pos], 0, (wavetable_pos_global - emu8k->pos) * sizeof(emu8k->reverb_in_buffer[0]));
+    memset(buf, 0, 2 * (target_pos - emu8k->pos) * sizeof(emu8k->buffer[0]));
+    memset(&emu8k->chorus_in_buffer[emu8k->pos], 0, (target_pos - emu8k->pos) * sizeof(emu8k->chorus_in_buffer[0]));
+    memset(&emu8k->reverb_in_buffer[emu8k->pos], 0, (target_pos - emu8k->pos) * sizeof(emu8k->reverb_in_buffer[0]));
 
     /* Voices section  */
     for (uint8_t c = 0; c < 32; c++) {
         emu_voice = &emu8k->voice[c];
         buf       = &emu8k->buffer[emu8k->pos * 2];
 
-        for (pos = emu8k->pos; pos < wavetable_pos_global; pos++) {
+        for (pos = emu8k->pos; pos < target_pos; pos++) {
             int32_t dat;
 
             if (emu_voice->cvcf_curr_volume) {
@@ -2117,14 +2123,43 @@ emu8k_update(emu8k_t *emu8k)
     }
 
     buf = &emu8k->buffer[emu8k->pos * 2];
-    emu8k_work_reverb(&emu8k->reverb_in_buffer[emu8k->pos], buf, &emu8k->reverb_engine, wavetable_pos_global - emu8k->pos);
-    emu8k_work_chorus(&emu8k->chorus_in_buffer[emu8k->pos], buf, &emu8k->chorus_engine, wavetable_pos_global - emu8k->pos);
-    emu8k_work_eq(buf, wavetable_pos_global - emu8k->pos);
+    emu8k_work_reverb(&emu8k->reverb_in_buffer[emu8k->pos], buf, &emu8k->reverb_engine, target_pos - emu8k->pos);
+    emu8k_work_chorus(&emu8k->chorus_in_buffer[emu8k->pos], buf, &emu8k->chorus_engine, target_pos - emu8k->pos);
+    emu8k_work_eq(buf, target_pos - emu8k->pos);
 
     /* Update EMU clock. */
-    emu8k->wc += (wavetable_pos_global - emu8k->pos);
+    emu8k->wc += (target_pos - emu8k->pos);
 
-    emu8k->pos = wavetable_pos_global;
+    emu8k->pos = target_pos;
+}
+
+/* OPT-2: Barrier-based update function */
+void
+emu8k_update(emu8k_t *emu8k)
+{
+    if (!emu8k->audio_running) {
+        /* Inline fallback: original behavior */
+        emu8k_synth_core(emu8k, wavetable_pos_global);
+        return;
+    }
+
+    /* Signal audio thread to synthesize */
+    thread_set_event(emu8k->audio_work_event);
+
+    /* Barrier: block until audio thread finishes the buffer */
+    while (!ATOMIC_LOAD(emu8k->buffer_ready)) {
+        thread_wait_event(emu8k->audio_done_event, -1);
+        thread_reset_event(emu8k->audio_done_event);
+    }
+    ATOMIC_STORE(emu8k->buffer_ready, 0);
+
+    /* Copy handoff_buf to emu8k->buffer */
+    thread_wait_mutex(emu8k->handoff_mutex);
+    memcpy(emu8k->buffer, emu8k->handoff_buf,
+           WTBUFLEN * 2 * sizeof(int32_t));
+    thread_release_mutex(emu8k->handoff_mutex);
+
+    emu8k->pos = wavetable_pos_global;  /* maintain invariant */
 }
 
 void
@@ -2143,6 +2178,9 @@ emu8k_change_addr(emu8k_t *emu8k, uint16_t emu_addr)
         io_sethandler(emu8k->addr + 0x800, 0x0004, emu8k_inb, emu8k_inw, NULL, emu8k_outb, emu8k_outw, NULL, emu8k);
     }
 }
+
+/* OPT-2: Forward declaration for audio thread */
+static void emu8k_audio_thread_fn(void *priv);
 
 /* onboard_ram in kilobytes */
 void
@@ -2364,11 +2402,66 @@ emu8k_init(emu8k_t *emu8k, uint16_t emu_addr, int onboard_ram)
     emu8k->hwcf2 = 0x20;
     /* Initial state is muted. 0x04 is unmuted. */
     emu8k->hwcf3 = 0x00;
+
+    /* OPT-2: Launch audio synthesis thread */
+    emu8k->buffer_ready      = 0;
+    emu8k->handoff_mutex     = thread_create_mutex();
+    emu8k->audio_start_event = thread_create_event();
+    emu8k->audio_work_event  = thread_create_event();
+    emu8k->audio_done_event  = thread_create_event();
+    emu8k->audio_running     = 1;
+    emu8k->audio_thread_h    = thread_create(emu8k_audio_thread_fn, emu8k);
+
+    thread_wait_event(emu8k->audio_start_event, -1);
+    thread_reset_event(emu8k->audio_start_event);
+}
+
+/* ================ OPT-2: Audio synthesis thread ================ */
+static void
+emu8k_audio_thread_fn(void *priv)
+{
+    emu8k_t *emu8k = (emu8k_t *) priv;
+
+    thread_set_event(emu8k->audio_start_event);
+
+    while (emu8k->audio_running) {
+        thread_wait_event(emu8k->audio_work_event, -1);
+        thread_reset_event(emu8k->audio_work_event);
+
+        if (!emu8k->audio_running)
+            break;
+
+        /* Run synthesis up to the current wavetable_pos_global */
+        int target = wavetable_pos_global;
+        emu8k_synth_core(emu8k, target);
+
+        /* Handoff only if we reached the end of the buffer */
+        if (emu8k->pos >= WTBUFLEN) {
+            thread_wait_mutex(emu8k->handoff_mutex);
+            memcpy(emu8k->handoff_buf, emu8k->buffer,
+                   WTBUFLEN * 2 * sizeof(int32_t));
+            thread_release_mutex(emu8k->handoff_mutex);
+            emu8k->pos = 0;
+            ATOMIC_STORE(emu8k->buffer_ready, 1);
+            thread_set_event(emu8k->audio_done_event);
+        }
+    }
 }
 
 void
 emu8k_close(emu8k_t *emu8k)
 {
+    /* OPT-2: Shut down audio thread cleanly */
+    if (emu8k->audio_running) {
+        emu8k->audio_running = 0;
+        thread_set_event(emu8k->audio_work_event);
+        thread_wait(emu8k->audio_thread_h);
+        thread_destroy_event(emu8k->audio_work_event);
+        thread_destroy_event(emu8k->audio_done_event);
+        thread_destroy_event(emu8k->audio_start_event);
+        thread_close_mutex(emu8k->handoff_mutex);
+    }
+
     if (emu8k->rom)
         free(emu8k->rom);
     if (emu8k->ram)

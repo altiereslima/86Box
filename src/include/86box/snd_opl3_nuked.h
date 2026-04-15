@@ -143,6 +143,21 @@ struct _opl3_chip {
     opl3_writebuf writebuf[OPL3_WRITEBUF_SIZE];
 };
 
+/* ================ OPT-3: audio thread decoupling ================ */
+/* Ring buffer command for SPSC (CPU thread produces, audio thread consumes) */
+typedef struct opl_cmd_t {
+    uint64_t tsc;    /* cycles/tsc at the time of the write */
+    uint16_t port;   /* raw port passed to the handler */
+    uint8_t  val;    /* value written */
+    uint8_t  pad;    /* alignment padding */
+} opl_cmd_t;
+
+#define OPL_CMD_RING_SIZE  2048u
+#define OPL_CMD_RING_MASK  (OPL_CMD_RING_SIZE - 1u)
+
+/* The handoff buffer must be large enough for the larger of SOUND or MUSIC */
+#define OPL_HANDOFF_BUFLEN  MUSICBUFLEN  /* MUSICBUFLEN > SOUNDBUFLEN */
+
 typedef struct {
     opl3_chip opl;
     int8_t    flags;
@@ -160,6 +175,33 @@ typedef struct {
     int32_t buffer[MUSICBUFLEN * 2];
 
     int32_t *(*update)(void *priv);
+
+    /* ---- OPT-3 fields below ---- */
+
+    /* Ring buffer SPSC (CPU thread produces, audio thread consumes) */
+    opl_cmd_t            cmd_ring[OPL_CMD_RING_SIZE];
+    volatile uint32_t    cmd_write_pos;  /* CPU thread owner */
+    volatile uint32_t    cmd_read_pos;   /* audio thread owner */
+
+    /* Handoff buffer: int32 interleaved stereo, result of synthesis.
+       Read by CPU thread (under fast mutex) in get_buffer barrier.
+       Written by audio thread after synthesizing each buffer period. */
+    int32_t  handoff_buf[OPL_HANDOFF_BUFLEN * 2];
+    mutex_t *handoff_mutex;
+
+    /* Thread control */
+    thread_t    *audio_thread_h;
+    event_t     *audio_work_event;    /* CPU -> audio: "work available" */
+    event_t     *audio_done_event;    /* audio -> CPU: "buffer ready" */
+    event_t     *audio_start_event;   /* startup handshake */
+    volatile int audio_running;
+
+    /* TSC limit up to which the audio thread may consume writes and synthesize.
+       Updated by CPU thread in the barrier and when overflow-drain occurs. */
+    volatile uint64_t tsc_cpu_observed;
+
+    /* Flag: synthesis for the current buffer finished? (used by barrier) */
+    volatile int buffer_ready;
 } nuked_opl3_drv_t;
 
 enum {
