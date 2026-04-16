@@ -432,11 +432,13 @@ mouse_timer_poll(UNUSED(void *priv))
 static void
 atomic_double_add(ATOMIC_DOUBLE *var, double val)
 {
-    double temp = atomic_load(var);
-
+    /* Use the GCC/Clang generic __atomic_load/__atomic_store built-ins so that
+       'volatile double' is accepted (the *_n variants only work with integer
+       and pointer types on Clang). */
+    double temp;
+    __atomic_load(var, &temp, __ATOMIC_SEQ_CST);
     temp += val;
-
-    atomic_store(var, temp);
+    __atomic_store(var, &temp, __ATOMIC_SEQ_CST);
 }
 #endif
 
