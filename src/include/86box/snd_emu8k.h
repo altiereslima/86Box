@@ -1,6 +1,9 @@
 #ifndef SOUND_EMU8K_H
 #define SOUND_EMU8K_H
 
+/* For thread_t, event_t, mutex_t used by OPT-2 audio thread fields. */
+#include <86box/thread.h>
+
 /* All these defines are in samples, not in bytes. */
 #define EMU8K_MEM_ADDRESS_MASK  0xFFFFFF
 #define EMU8K_RAM_MEM_START     0x200000

@@ -24,6 +24,7 @@ extern "C" {
 #endif
 
 #include <inttypes.h>
+#include <86box/thread.h>
 
 #ifndef OPL3_ENABLE_STEREOEXT
 #define OPL3_ENABLE_STEREOEXT 0

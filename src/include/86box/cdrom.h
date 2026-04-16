@@ -19,6 +19,9 @@
 #include <86box/version.h>
 #endif
 
+/* For thread_t, event_t used by OPT-4 async I/O fields. */
+#include <86box/thread.h>
+
 #define CDROM_NUM                   8
 
 #define CD_STATUS_EMPTY             0
