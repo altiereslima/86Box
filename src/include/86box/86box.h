@@ -115,17 +115,28 @@
 #else
     /* On ARM and other architectures, use GCC/Clang __atomic_* built-ins.
        These work with plain volatile types (no _Atomic keyword needed),
-       so headers remain compatible with both C and C++ compilation (Qt). */
-    #define ATOMIC_INT volatile int
-    #define ATOMIC_UINT volatile uint32_t
+       so headers remain compatible with both C and C++ compilation (Qt).
+       ATOMIC_LOAD/ATOMIC_STORE use the *generic* __atomic_load/__atomic_store
+       forms (operating on memory), so they accept any trivially-copyable
+       type including 'double'. The *_n variants only accept integer/pointer
+       types on Clang. */
+    #define ATOMIC_INT    volatile int
+    #define ATOMIC_UINT   volatile uint32_t
     #define ATOMIC_DOUBLE volatile double
-    #define ATOMIC_LOAD(var) __atomic_load_n(&(var), __ATOMIC_SEQ_CST)
-    #define ATOMIC_STORE(var, val) __atomic_store_n(&(var), (val), __ATOMIC_SEQ_CST)
+    #define ATOMIC_LOAD(var) __extension__ ({ \
+        __typeof__(var) _ccd_tmp; \
+        __atomic_load(&(var), &_ccd_tmp, __ATOMIC_SEQ_CST); \
+        _ccd_tmp; \
+    })
+    #define ATOMIC_STORE(var, val) do { \
+        __typeof__(var) _ccd_tmp = (val); \
+        __atomic_store(&(var), &_ccd_tmp, __ATOMIC_SEQ_CST); \
+    } while (0)
     #define ATOMIC_INC(var) __atomic_add_fetch(&(var), 1, __ATOMIC_SEQ_CST)
     #define ATOMIC_DEC(var) __atomic_sub_fetch(&(var), 1, __ATOMIC_SEQ_CST)
     #define ATOMIC_ADD(var, val) __atomic_add_fetch(&(var), (val), __ATOMIC_SEQ_CST)
     #define ATOMIC_SUB(var, val) __atomic_sub_fetch(&(var), (val), __ATOMIC_SEQ_CST)
-    #define ATOMIC_DOUBLE_ADD(var, val) ((var) += (val))
+    #define ATOMIC_DOUBLE_ADD(var, val) atomic_double_add(&(var), (val))
 #endif
 
 #ifdef __cplusplus
