@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QShortcut>
 #include <QIcon>
+#include <QPointer>
 
 #include <memory>
 #include <array>
@@ -18,6 +19,7 @@
 extern QTimer discordupdate;
 
 class MediaMenu;
+class PerfDashboardWindow;
 class RendererStack;
 
 namespace Ui {
@@ -129,6 +131,7 @@ private slots:
     void on_actionMute_Unmute_triggered();
     void on_actionSound_gain_triggered();
     void on_actionPreferences_triggered();
+    void on_actionPerformanceDashboard_triggered();
     void on_actionEnable_Discord_integration_triggered(bool checked);
     void on_actionRenderer_options_triggered();
     void on_actionFast_forward_triggered();
@@ -211,6 +214,8 @@ private:
     bool isShowMessage  = false;
     bool isNonPause     = false;
     bool window_blocked = false;
+
+    QPointer<PerfDashboardWindow> perf_dashboard_window;
 };
 
 #endif // QT_MAINWINDOW_HPP

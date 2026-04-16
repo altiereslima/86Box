@@ -67,6 +67,7 @@
 #include <86box/machine.h>
 #include <86box/bugger.h>
 #include <86box/postcard.h>
+#include <86box/perf_dashboard.h>
 #include <86box/unittester.h>
 #include <86box/novell_cardkey.h>
 #include <86box/isamem.h>
@@ -240,7 +241,7 @@ char     monitor_edid_path[1024] = { 0 };                         /* (C) Path to
 
 double   video_gl_input_scale = 1.0;                              /* (C) OpenGL 3.x input scale */
 int      video_gl_input_scale_mode = FULLSCR_SCALE_FULL;          /* (C) OpenGL 3.x input stretch mode */
-int      color_scheme = 0;                                        /* (C) Color scheme of UI (Windows-only) */
+int      color_scheme = 2;                                        /* (C) Color scheme of UI: 0=system, 2=Black Modern */
 int      fdd_sounds_enabled = 1;                                  /* (C) Floppy drive sounds enabled */
 
 // Accelerator key array
@@ -1481,6 +1482,8 @@ pc_init_modules(void)
     }
 
     atfullspeed = 0;
+
+    perfdash_init();
 
     random_init();
 

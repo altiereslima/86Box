@@ -145,7 +145,7 @@ load_global_emulator(void)
     confirm_reset = ini_section_get_int(cat, "confirm_reset", 1);
     confirm_exit  = ini_section_get_int(cat, "confirm_exit", 1);
     confirm_save  = ini_section_get_int(cat, "confirm_save", 1);
-    color_scheme  = ini_section_get_int(cat, "color_scheme", 0);
+    color_scheme  = ini_section_get_int(cat, "color_scheme", 2);
 
     vmm_disabled = ini_section_get_int(cat, "vmm_disabled", 0);
 
@@ -227,7 +227,7 @@ load_global_legacy(void)
     confirm_reset = ini_section_get_int(cat, "confirm_reset", 1);
     confirm_exit  = ini_section_get_int(cat, "confirm_exit", 1);
     confirm_save  = ini_section_get_int(cat, "confirm_save", 1);
-    color_scheme  = ini_section_get_int(cat, "color_scheme", 0);
+    color_scheme  = ini_section_get_int(cat, "color_scheme", 2);
 
     inhibit_multimedia_keys = ini_section_get_int(cat, "inhibit_multimedia_keys", 0);
 
@@ -2729,7 +2729,7 @@ save_global_emulator(void)
         ini_section_set_string(cat, "language", buffer);
     }
 
-    if (color_scheme)
+    if (color_scheme != 2)
         ini_section_set_int(cat, "color_scheme", color_scheme);
     else
         ini_section_delete_var(cat, "color_scheme");

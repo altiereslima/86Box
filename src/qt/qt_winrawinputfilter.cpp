@@ -41,19 +41,12 @@
 #include "qt_winrawinputfilter.hpp"
 
 #include <QMenuBar>
-#include <QFile>
-#include <QTextStream>
-#include <QApplication>
 #include <QTimer>
 
 #include <cmath>
 #include <atomic>
 
 #include <windows.h>
-#include <dwmapi.h>
-#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
-#    define DWMWA_USE_IMMERSIVE_DARK_MODE 20
-#endif
 
 #include <86box/keyboard.h>
 #include <86box/mouse.h>
@@ -70,10 +63,8 @@ extern void win_keyboard_handle(uint32_t scancode, int up, int e0, int e1);
 #include <memory>
 
 #include "qt_rendererstack.hpp"
-#include "qt_util.hpp"
+#include "qt_theme.hpp"
 #include "ui_qt_mainwindow.h"
-
-bool NewDarkMode = FALSE;
 
 extern MainWindow *main_window;
 
@@ -308,39 +299,12 @@ device_change(WPARAM wParam, LPARAM lParam)
 void
 selectDarkMode()
 {
-    bool OldDarkMode = NewDarkMode;
+    const bool oldDarkMode = theme::isDarkThemeActive();
+    theme::applyAppTheme();
 
-    if (!util::isWindowsLightTheme()) {
-        QFile f(":qdarkstyle/dark/darkstyle.qss");
-
-        if (!f.exists())
-            printf("Unable to set stylesheet, file not found\n");
-        else {
-            f.open(QFile::ReadOnly | QFile::Text);
-            QTextStream ts(&f);
-            qApp->setStyleSheet(ts.readAll());
-        }
-        QPalette palette(qApp->palette());
-        palette.setColor(QPalette::Link, Qt::white);
-        palette.setColor(QPalette::LinkVisited, Qt::lightGray);
-        qApp->setPalette(palette);
-        NewDarkMode = TRUE;
-    } else {
-        qApp->setStyleSheet("");
-        QPalette palette(qApp->palette());
-        palette.setColor(QPalette::Link, Qt::blue);
-        palette.setColor(QPalette::LinkVisited, Qt::magenta);
-        qApp->setPalette(palette);
-        NewDarkMode = FALSE;
-    }
-
-    if (NewDarkMode != OldDarkMode)
+    if (theme::isDarkThemeActive() != oldDarkMode)
         QTimer::singleShot(1000, []() {
-            BOOL DarkMode = NewDarkMode;
-            DwmSetWindowAttribute((HWND) main_window->winId(),
-                                  DWMWA_USE_IMMERSIVE_DARK_MODE,
-                                  (LPCVOID) &DarkMode,
-                                  sizeof(DarkMode));
+            theme::syncNativeWindowFrame(main_window);
 
             main_window->resizeContents(monitors[0].mon_scrnsz_x,
                                         monitors[0].mon_scrnsz_y);
@@ -376,66 +340,14 @@ WindowsRawInputFilter::nativeEventFilter(const QByteArray &eventType, void *mess
                     }
                     return true;
                 case WM_SETTINGCHANGE:
-                    if ((((void *) msg->lParam) != nullptr) && (wcscmp(L"ImmersiveColorSet", (wchar_t *) msg->lParam) == 0) && color_scheme == 0) {
-
-                        bool OldDarkMode = NewDarkMode;
+                    if (theme::useSystemTheme() && theme::isSystemThemeChangeMessage(msg)) {
 #if 0
                     if (do_auto_pause && !dopause) {
                         auto_paused = 1;
                         plat_pause(1);
                     }
 #endif
-
-                        if (!util::isWindowsLightTheme()) {
-                            QFile f(":qdarkstyle/dark/darkstyle.qss");
-
-                            if (!f.exists())
-                                printf("Unable to set stylesheet, file not found\n");
-                            else {
-                                f.open(QFile::ReadOnly | QFile::Text);
-                                QTextStream ts(&f);
-                                qApp->setStyleSheet(ts.readAll());
-                            }
-                            QPalette palette(qApp->palette());
-                            palette.setColor(QPalette::Link, Qt::white);
-                            palette.setColor(QPalette::LinkVisited, Qt::lightGray);
-                            qApp->setPalette(palette);
-                            NewDarkMode = TRUE;
-                        } else {
-                            qApp->setStyleSheet("");
-                            QPalette palette(qApp->palette());
-                            palette.setColor(QPalette::Link, Qt::blue);
-                            palette.setColor(QPalette::LinkVisited, Qt::magenta);
-                            qApp->setPalette(palette);
-                            NewDarkMode = FALSE;
-                        }
-
-                        if (NewDarkMode != OldDarkMode)
-                            QTimer::singleShot(1000, [this]() {
-                                BOOL DarkMode = NewDarkMode;
-                                DwmSetWindowAttribute((HWND) window->winId(),
-                                                      DWMWA_USE_IMMERSIVE_DARK_MODE,
-                                                      (LPCVOID) &DarkMode,
-                                                      sizeof(DarkMode));
-
-                                window->resizeContents(monitors[0].mon_scrnsz_x,
-                                                       monitors[0].mon_scrnsz_y);
-
-                                for (int i = 1; i < MONITORS_NUM; i++) {
-                                    auto mon = &(monitors[i]);
-
-                                    if ((window->renderers[i] != nullptr) && !window->renderers[i]->isHidden())
-                                        window->resizeContentsMonitor(mon->mon_scrnsz_x,
-                                                                      mon->mon_scrnsz_y, i);
-                                }
-
-#if 0
-                        if (auto_paused) {
-                            plat_pause(0);
-                            auto_paused = 0;
-                        }
-#endif
-                            });
+                        selectDarkMode();
                     }
                     break;
                 case WM_SYSKEYDOWN:

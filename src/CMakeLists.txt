@@ -27,6 +27,7 @@ endif()
 add_executable(86Box
     86box.c
     config.c
+    perf_dashboard.c
     timer.c
     io.c
     acpi.c
@@ -116,6 +117,10 @@ endif()
 
 if(INSTRUMENT)
     add_compile_definitions(USE_INSTRUMENT)
+endif()
+
+if(PERFDASH_ENABLE)
+    add_compile_definitions(PERFDASH_ENABLE)
 endif()
 
 target_link_libraries(86Box

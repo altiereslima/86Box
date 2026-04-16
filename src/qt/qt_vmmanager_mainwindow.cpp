@@ -22,6 +22,7 @@
 #endif
 #include "qt_about.hpp"
 #include "qt_preferences.hpp"
+#include "qt_theme.hpp"
 #include "qt_util.hpp"
 
 #include <QCloseEvent>
@@ -102,6 +103,8 @@ VMManagerMainWindow::
 #ifdef Q_OS_WINDOWS
     connect(this, &VMManagerMainWindow::darkModeUpdated, vmm, &VMManagerMain::onDarkModeUpdated);
     connect(this, &VMManagerMainWindow::preferencesUpdated, []() { vmm_dark_mode_filter->reselectDarkMode(); });
+#else
+    connect(this, &VMManagerMainWindow::preferencesUpdated, []() { theme::applyAppTheme(); });
 #endif
 
     {

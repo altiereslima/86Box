@@ -23,6 +23,7 @@
 #include "qt_mainwindow.hpp"
 #include "ui_qt_mainwindow.h"
 
+#include "perfdash/qt_perfdash_window.hpp"
 #include "qt_specifydimensions.h"
 #include "qt_soundgain.hpp"
 #include "qt_preferences.hpp"
@@ -190,6 +191,7 @@ MainWindow::MainWindow(QWidget *parent)
     extern MainWindow *main_window;
     main_window = this;
     ui->setupUi(this);
+    ui->actionPerformanceDashboard->setIcon(QIcon(":/themes/icons/benchmark.svg"));
     status->setSoundMenu(ui->menuSound);
     ui->actionMute_Unmute->setText(sound_muted ? tr("&Unmute") : tr("&Mute"));
     ui->stackedWidget->setMouseTracking(true);
@@ -2269,6 +2271,27 @@ MainWindow::on_actionPreferences_triggered()
         case QDialog::Rejected:
             break;
     }
+}
+
+void
+MainWindow::on_actionPerformanceDashboard_triggered()
+{
+    if (!perf_dashboard_window) {
+        perf_dashboard_window = new PerfDashboardWindow(this);
+        connect(perf_dashboard_window, &QObject::destroyed, this, [this]() {
+            perf_dashboard_window = nullptr;
+        });
+        perf_dashboard_window->show();
+        return;
+    }
+
+    if (perf_dashboard_window->isMinimized())
+        perf_dashboard_window->showNormal();
+    else
+        perf_dashboard_window->show();
+
+    perf_dashboard_window->raise();
+    perf_dashboard_window->activateWindow();
 }
 
 void

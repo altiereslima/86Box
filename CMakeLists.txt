@@ -134,6 +134,7 @@ option(MUNT         "MUNT"                                                      
 option(VNC          "VNC renderer"                                               OFF)
 option(MINITRACE    "Enable Chrome tracing using the modified minitrace library" OFF)
 option(GDBSTUB      "Enable GDB stub server for debugging"                       OFF)
+option(PERFDASH_ENABLE "Enable performance dashboard instrumentation"            OFF)
 option(DEV_BRANCH   "Development branch"                                         OFF)
 option(DISCORD      "Discord Rich Presence support"                              ON)
 option(DEBUGREGS486 "Enable debug register opeartion on 486+ CPUs"               OFF)

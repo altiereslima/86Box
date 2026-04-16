@@ -93,6 +93,9 @@ add_library(plat STATIC
 add_library(ui STATIC
     qt_ui.cpp
 
+    perfdash/qt_perfdash_window.cpp
+    perfdash/qt_perfdash_window.hpp
+
     qt_mainwindow.cpp
     qt_mainwindow.hpp
     qt_mainwindow.ui
@@ -205,6 +208,8 @@ add_library(ui STATIC
 
     qt_styleoverride.cpp
     qt_styleoverride.hpp
+    qt_theme.hpp
+    qt_theme.cpp
     qt_util.hpp
     qt_util.cpp
 
@@ -260,6 +265,7 @@ add_library(ui STATIC
     qt_vmmanager_mainwindow.ui
 
     ../qt_resources.qrc
+    ./themes/black_modern.qrc
     ./qdarkstyle/dark/darkstyle.qrc
 
     qt_openglshadermanagerdialog.hpp

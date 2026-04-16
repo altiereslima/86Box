@@ -1,0 +1,15 @@
+<RCC>
+  <qresource prefix="/themes">
+    <file>black_modern.qss</file>
+    <file>icons/play.svg</file>
+    <file>icons/stop.svg</file>
+    <file>icons/benchmark.svg</file>
+    <file>icons/reset.svg</file>
+    <file>icons/domain_cpu.svg</file>
+    <file>icons/domain_video.svg</file>
+    <file>icons/domain_audio.svg</file>
+    <file>icons/domain_io.svg</file>
+    <file>icons/domain_timing.svg</file>
+    <file>icons/domain_overhead.svg</file>
+  </qresource>
+</RCC>

@@ -79,6 +79,7 @@ extern "C" {
 #include "qt_mainwindow.hpp"
 #include "qt_preferences.hpp"
 #include "qt_settings.hpp"
+#include "qt_theme.hpp"
 #include "cocoa_mouse.hpp"
 #include "qt_styleoverride.hpp"
 #include "qt_unixmanagerfilter.hpp"
@@ -525,7 +526,6 @@ int
 main(int argc, char *argv[])
 {
 #ifdef Q_OS_WINDOWS
-    bool wasDarkTheme = false;
     /* Check if Windows supports UTF-8 */
     if (GetACP() == CP_UTF8)
         acp_utf8 = 1;
@@ -558,28 +558,12 @@ main(int argc, char *argv[])
     setlocale(LC_NUMERIC, "C");
 
 #ifdef Q_OS_WINDOWS
-    Q_INIT_RESOURCE(darkstyle);
     if (QFile(QApplication::applicationDirPath() + "/opengl32.dll").exists()) {
         qputenv("QT_OPENGL_DLL", QFileInfo(QApplication::applicationDirPath() + "/opengl32.dll").absoluteFilePath().toUtf8());
     }
-
-    if (!util::isWindowsLightTheme()) {
-        QFile f(":qdarkstyle/dark/darkstyle.qss");
-
-        if (!f.exists()) {
-            printf("Unable to set stylesheet, file not found\n");
-        } else {
-            f.open(QFile::ReadOnly | QFile::Text);
-            QTextStream ts(&f);
-            qApp->setStyleSheet(ts.readAll());
-            wasDarkTheme = true;
-        }
-        QPalette palette(qApp->palette());
-        palette.setColor(QPalette::Link, Qt::white);
-        palette.setColor(QPalette::LinkVisited, Qt::lightGray);
-        qApp->setPalette(palette);
-    }
 #endif
+
+    theme::applyAppTheme();
 
     app.setApplicationName(EMU_NAME);
     Q_INIT_RESOURCE(qt_resources);
@@ -601,16 +585,7 @@ main(int argc, char *argv[])
     if (!pc_init(argc, argv)) {
         return 0;
     }
-
-#ifdef Q_OS_WINDOWS
-    if (util::isWindowsLightTheme() && wasDarkTheme) {
-        qApp->setStyleSheet("");
-        QPalette palette(qApp->palette());
-        palette.setColor(QPalette::Link, Qt::blue);
-        palette.setColor(QPalette::LinkVisited, Qt::magenta);
-        qApp->setPalette(palette);
-    }
-#endif
+    theme::applyAppTheme();
 
     if (!start_vmm)
 #ifdef Q_OS_MACOS
@@ -619,6 +594,7 @@ main(int argc, char *argv[])
         qt_set_sequence_auto_mnemonic(!!kbd_req_capture);
 #endif
     app.setStyle(new StyleOverride());
+    theme::applyAppTheme();
 
     bool startMaximized = window_remember && monitor_settings[0].mon_window_maximized;
     fprintf(stderr, "Qt: version %s, platform \"%s\"\n", qVersion(), QApplication::platformName().toUtf8().data());
@@ -894,11 +870,6 @@ main(int argc, char *argv[])
     /* Initialize the rendering window, or fullscreen. */
     QTimer::singleShot(0, &app, [] {
         plat_set_thread_name(nullptr, "qt_thread");
-
-#ifdef Q_OS_WINDOWS
-        extern bool NewDarkMode;
-        NewDarkMode = util::isWindowsLightTheme();
-#endif
         pc_reset_hard_init();
 
         /* Set the PAUSE mode depending on the renderer. */

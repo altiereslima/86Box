@@ -14,6 +14,7 @@
  */
 #include "qt_vmmanager_clientsocket.hpp"
 #include "qt_vmmanager_protocol.hpp"
+#include "qt_theme.hpp"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -186,6 +187,8 @@ VMManagerClientSocket::jsonReceived(const QJsonObject &json)
 #ifdef Q_OS_WINDOWS
                 void selectDarkMode();
                 selectDarkMode();
+#else
+                theme::applyAppTheme();
 #endif
                 break;
             }

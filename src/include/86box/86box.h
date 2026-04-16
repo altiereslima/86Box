@@ -260,7 +260,7 @@ extern int global_cfg_overridden;  /* global config file was overriden on comman
 extern int  monitor_edid;                   /* (C) Which EDID to use. 0=default, 1=custom. */
 extern char monitor_edid_path[1024];        /* (C) Path to custom EDID */
 
-extern int color_scheme;                    /* (C) Color scheme of UI (Windows-only) */
+extern int color_scheme;                    /* (C) Color scheme of UI: 0=system, 2=Black Modern */
 extern int fdd_sounds_enabled;              /* (C) Enable floppy drive sounds */
 
 #ifndef USE_NEW_DYNAREC

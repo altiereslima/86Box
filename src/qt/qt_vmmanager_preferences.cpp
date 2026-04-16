@@ -17,14 +17,10 @@
 #include <cstring>
 
 #include "qt_preferences.hpp"
+#include "qt_theme.hpp"
 #include "qt_vmmanager_preferences.hpp"
 #include "qt_vmmanager_config.hpp"
 #include "ui_qt_vmmanager_preferences.h"
-
-#ifdef Q_OS_WINDOWS
-#    include "qt_vmmanager_windarkmodefilter.hpp"
-extern WindowsDarkModeFilter *vmm_dark_mode_filter;
-#endif
 
 extern "C" {
 #include <86box/86box.h>
@@ -78,13 +74,7 @@ VMManagerPreferences::
     const auto rememberSizePosition = config->getStringValue("window_remember").toInt();
     ui->rememberSizePositionCheckBox->setChecked(rememberSizePosition);
 
-    ui->radioButtonSystem->setChecked(color_scheme == 0);
-    ui->radioButtonLight->setChecked(color_scheme == 1);
-    ui->radioButtonDark->setChecked(color_scheme == 2);
-
-#ifndef Q_OS_WINDOWS
-    ui->groupBoxColorScheme->setHidden(true);
-#endif
+    ui->checkBoxUseSystemTheme->setChecked(color_scheme != 2);
 }
 
 VMManagerPreferences::~VMManagerPreferences()
@@ -120,8 +110,12 @@ VMManagerPreferences::accept()
 
     strncpy(vmm_path_cfg, QDir::cleanPath(ui->systemDirectory->text()).toUtf8().constData(), sizeof(vmm_path_cfg) - 1);
     lang_id      = ui->comboBoxLanguage->currentData().toInt();
-    color_scheme = (ui->radioButtonSystem->isChecked()) ? 0 : (ui->radioButtonLight->isChecked() ? 1 : 2);
+    color_scheme = ui->checkBoxUseSystemTheme->isChecked() ? 0 : 2;
     config_save_global();
+
+#ifndef Q_OS_WINDOWS
+    theme::applyAppTheme();
+#endif
 
 #if EMU_BUILD_NUM != 0
     config->setStringValue("update_check", ui->updateCheckBox->isChecked() ? "1" : "0");

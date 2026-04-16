@@ -104,8 +104,9 @@
      <addaction name="actionSound_gain"/>
     </widget>
     <addaction name="actionSettings"/>
-    <addaction name="actionUpdate_status_bar_icons"/>
+    <addaction name="actionPerformanceDashboard"/>
     <addaction name="separator"/>
+    <addaction name="actionUpdate_status_bar_icons"/>
     <addaction name="actionEnable_Discord_integration"/>
     <addaction name="separator"/>
     <addaction name="actionTake_screenshot"/>
@@ -392,6 +393,17 @@
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionPerformanceDashboard">
+   <property name="text">
+    <string>Performance &amp;Dashboard...</string>
+   </property>
+   <property name="toolTip">
+    <string>Performance Dashboard...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+P</string>
    </property>
   </action>
   <action name="actionFullscreen">
