@@ -404,9 +404,9 @@ typedef struct cdrom {
 
     uint8_t      prefetch_buf[CDROM_PREFETCH_SECTORS][CDROM_SECTOR_MAX_SIZE];
     int32_t      prefetch_lba_start;      /* first LBA in buffer */
-    _Atomic int32_t prefetch_count;       /* valid sector count */
-    _Atomic int32_t prefetch_request_lba; /* next LBA requested by CPU */
-    _Atomic int     prefetch_ready;
+    volatile int32_t prefetch_count;      /* valid sector count */
+    volatile int32_t prefetch_request_lba;/* next LBA requested by CPU */
+    volatile int prefetch_ready;
 } cdrom_t;
 
 extern cdrom_t cdrom[CDROM_NUM];
