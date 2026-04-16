@@ -181,8 +181,8 @@ typedef struct {
 
     /* Ring buffer SPSC (CPU thread produces, audio thread consumes) */
     opl_cmd_t            cmd_ring[OPL_CMD_RING_SIZE];
-    volatile uint32_t    cmd_write_pos;  /* CPU thread owner */
-    volatile uint32_t    cmd_read_pos;   /* audio thread owner */
+    _Atomic uint32_t     cmd_write_pos;  /* CPU thread owner */
+    _Atomic uint32_t     cmd_read_pos;   /* audio thread owner */
 
     /* Handoff buffer: int32 interleaved stereo, result of synthesis.
        Read by CPU thread (under fast mutex) in get_buffer barrier.
@@ -199,10 +199,10 @@ typedef struct {
 
     /* TSC limit up to which the audio thread may consume writes and synthesize.
        Updated by CPU thread in the barrier and when overflow-drain occurs. */
-    volatile uint64_t tsc_cpu_observed;
+    _Atomic uint64_t tsc_cpu_observed;
 
     /* Flag: synthesis for the current buffer finished? (used by barrier) */
-    volatile int buffer_ready;
+    _Atomic int      buffer_ready;
 } nuked_opl3_drv_t;
 
 enum {

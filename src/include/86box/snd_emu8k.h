@@ -413,7 +413,7 @@ typedef struct emu8k_t {
     event_t     *audio_done_event;    /* audio -> CPU: "buffer ready" */
     event_t     *audio_start_event;   /* startup handshake */
     volatile int audio_running;
-    volatile int buffer_ready;
+    _Atomic int  buffer_ready;
 } emu8k_t;
 
 void emu8k_change_addr(emu8k_t *emu8k, uint16_t emu_addr);
