@@ -41,6 +41,8 @@ public:
     QSize        getRenderWidgetSize();
     void         setSendKeyboardInput(bool enabled);
     void         reloadAllRenderers();
+    void         setBenchmarkControlsLocked(bool locked);
+    bool         benchmarkControlsLocked() const;
     QShortcut   *windowedShortcut;
     QKeySequence FindAcceleratorSeq(const char *name);
 
@@ -214,6 +216,7 @@ private:
     bool isShowMessage  = false;
     bool isNonPause     = false;
     bool window_blocked = false;
+    bool benchmark_controls_locked = false;
 
     QPointer<PerfDashboardWindow> perf_dashboard_window;
 };

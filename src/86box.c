@@ -2018,6 +2018,9 @@ pc_run(void)
 {
     int     mouse_msg_idx;
     wchar_t temp[200];
+    const int32_t cpu_budget = (int32_t) cpu_s->rspeed / (force_10ms ? 100 : 1000);
+
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_MAIN_LOOP);
 
     /* Trigger a hard reset if one is pending. */
     if (hard_reset_pending) {
@@ -2031,7 +2034,22 @@ pc_run(void)
 
     /* Run a block of code. */
     startblit();
-    cpu_exec((int32_t) cpu_s->rspeed / (force_10ms ? 100 : 1000));
+    {
+        const uint64_t tsc_before = tsc;
+
+        if (cpu_use_dynarec) {
+            PERF_SCOPE_BEGIN(PERF_DOMAIN_CPU_DYNAREC);
+            cpu_exec(cpu_budget);
+            PERF_SCOPE_END(PERF_DOMAIN_CPU_DYNAREC);
+        } else {
+            PERF_SCOPE_BEGIN(PERF_DOMAIN_CPU_INTERP);
+            cpu_exec(cpu_budget);
+            PERF_SCOPE_END(PERF_DOMAIN_CPU_INTERP);
+        }
+
+        if (tsc > tsc_before)
+            PERF_ADD(perf_instructions_executed, tsc - tsc_before);
+    }
     ack_pause();
 #ifdef USE_GDBSTUB /* avoid a KBC FIFO overflow when CPU emulation is stalled */
     if (gdbstub_step == GDBSTUB_EXEC) {
@@ -2077,6 +2095,8 @@ pc_run(void)
 #endif
         title_update = 0;
     }
+
+    PERF_SCOPE_END(PERF_DOMAIN_MAIN_LOOP);
 }
 
 /* Handler for the 1-second timer to refresh the window title. */

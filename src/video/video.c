@@ -35,6 +35,7 @@
 #include <86box/mem.h>
 #include <86box/rom.h>
 #include <86box/config.h>
+#include <86box/perf_dashboard.h>
 #include <86box/timer.h>
 #include <86box/path.h>
 #include <86box/plat.h>
@@ -435,6 +436,7 @@ video_blit_memtoscreen_monitor(int x, int y, int w, int h, int monitor_index)
     if ((w <= 0) || (h <= 0))
         return;
 
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_VIDEO_BLIT);
     video_wait_for_blit_monitor(monitor_index);
 
     monitors[monitor_index].mon_blit_data_ptr->busy          = 1;
@@ -446,6 +448,7 @@ video_blit_memtoscreen_monitor(int x, int y, int w, int h, int monitor_index)
     monitors[monitor_index].mon_renderedframes++;
 
     thread_set_event(monitors[monitor_index].mon_blit_data_ptr->wake_blit_thread);
+    PERF_SCOPE_END(PERF_DOMAIN_VIDEO_BLIT);
     MTR_END("video", "video_blit_memtoscreen");
 }
 

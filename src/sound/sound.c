@@ -30,6 +30,7 @@
 #include <86box/filters.h>
 #include <86box/machine.h>
 #include <86box/midi.h>
+#include <86box/perf_dashboard.h>
 #include <86box/plat.h>
 #include <86box/thread.h>
 #include <86box/snd_ac97.h>
@@ -327,8 +328,10 @@ sound_cd_thread(UNUSED(void *param))
             if ((cdrom[i].bus_type == CDROM_BUS_DISABLED) ||
                 (cdrom[i].cd_status != CD_STATUS_PLAYING))
                 continue;
+            PERF_SCOPE_BEGIN(PERF_DOMAIN_IO_CDROM);
             const int ret = cdrom_audio_callback(&(cdrom[i]), cd_buffer[i],
                                                  CD_BUFLEN * 2);
+            PERF_SCOPE_END(PERF_DOMAIN_IO_CDROM);
 
             if (ret) {
                 if (cdrom[i].get_volume) {
@@ -593,6 +596,7 @@ sound_poll(UNUSED(void *priv))
 
     sound_pos_global++;
     if (sound_pos_global == SOUNDBUFLEN) {
+        PERF_SCOPE_BEGIN(PERF_DOMAIN_SOUND_MIX);
         int c;
 
         memset(outbuffer, 0x00, SOUNDBUFLEN * 2 * sizeof(int32_t));
@@ -634,6 +638,7 @@ sound_poll(UNUSED(void *priv))
             thread_set_event(sound_hdd_event);
         }
         sound_pos_global = 0;
+        PERF_SCOPE_END(PERF_DOMAIN_SOUND_MIX);
     }
 }
 
@@ -832,7 +837,9 @@ sound_fdd_thread(UNUSED(void *param))
 
         static float fdd_float_buffer[SOUNDBUFLEN * 2];
         memset(fdd_float_buffer, 0, sizeof(fdd_float_buffer));
+        PERF_SCOPE_BEGIN(PERF_DOMAIN_IO_FLOPPY);
         fdd_audio_callback((int16_t*)fdd_float_buffer, SOUNDBUFLEN * 2);
+        PERF_SCOPE_END(PERF_DOMAIN_IO_FLOPPY);
         givealbuffer_fdd(fdd_float_buffer, SOUNDBUFLEN * 2);
     }
 }
@@ -890,7 +897,9 @@ sound_hdd_thread(UNUSED(void *param))
 
         static float hdd_float_buffer[SOUNDBUFLEN * 2];
         memset(hdd_float_buffer, 0, sizeof(hdd_float_buffer));
+        PERF_SCOPE_BEGIN(PERF_DOMAIN_IO_HDD);
         hdd_audio_callback((int16_t*)hdd_float_buffer, SOUNDBUFLEN * 2);
+        PERF_SCOPE_END(PERF_DOMAIN_IO_HDD);
         givealbuffer_hdd(hdd_float_buffer, SOUNDBUFLEN * 2);
     }
 }

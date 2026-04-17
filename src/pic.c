@@ -36,6 +36,7 @@
 #include <86box/apm.h>
 #include <86box/nvr.h>
 #include <86box/acpi.h>
+#include <86box/perf_dashboard.h>
 #include <86box/plat_unused.h>
 
 enum {
@@ -723,6 +724,7 @@ picint_common(uint16_t num, int level, int set, uint8_t *irq_state)
         return;
     }
 
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_TIMING_IRQ);
     if (level) {
         dev = &pic;
 
@@ -799,6 +801,8 @@ picint_common(uint16_t num, int level, int set, uint8_t *irq_state)
 
         update_pending();
     }
+
+    PERF_SCOPE_END(PERF_DOMAIN_TIMING_IRQ);
 }
 
 static uint8_t

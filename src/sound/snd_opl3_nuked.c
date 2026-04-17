@@ -43,6 +43,7 @@
 
 #define HAVE_STDARG_H
 #include <86box/86box.h>
+#include <86box/perf_dashboard.h>
 #include <86box/sound.h>
 #include "cpu.h"
 #include <86box/timer.h>
@@ -1459,11 +1460,13 @@ OPL3_Generate4ChStream(opl3_chip *chip, int32_t *sndptr1, int32_t *sndptr2, uint
 void
 OPL3_GenerateStream(opl3_chip *chip, int32_t *sndptr, uint32_t numsamples)
 {
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_SOUND_OPL);
     for (uint_fast32_t i = 0; i < numsamples; i++) {
         OPL3_Generate(chip, sndptr);
 
         sndptr += 2;
     }
+    PERF_SCOPE_END(PERF_DOMAIN_SOUND_OPL);
 }
 
 void

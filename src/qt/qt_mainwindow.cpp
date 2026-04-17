@@ -2036,6 +2036,9 @@ MainWindow::on_actionUpdate_mouse_every_CPU_frame_triggered()
 void
 MainWindow::on_actionFast_forward_triggered()
 {
+    if (benchmark_controls_locked)
+        return;
+
     fast_forward ^= 1;
 }
 
@@ -2314,6 +2317,9 @@ MainWindow::on_actionEnable_Discord_integration_triggered(bool checked)
 void
 MainWindow::showSettings()
 {
+    if (benchmark_controls_locked)
+        return;
+
     if (findChild<Settings *>() == nullptr)
         ui->actionSettings->trigger();
 }
@@ -2321,13 +2327,38 @@ MainWindow::showSettings()
 void
 MainWindow::hardReset()
 {
+    if (benchmark_controls_locked)
+        return;
+
     ui->actionHard_Reset->trigger();
 }
 
 void
 MainWindow::togglePause()
 {
+    if (benchmark_controls_locked)
+        return;
+
     ui->actionPause->trigger();
+}
+
+void
+MainWindow::setBenchmarkControlsLocked(bool locked)
+{
+    benchmark_controls_locked = locked;
+
+    ui->actionPause->setEnabled(!locked);
+    ui->actionFast_forward->setEnabled(!locked);
+    ui->actionHard_Reset->setEnabled(!locked);
+    ui->actionCtrl_Alt_Del->setEnabled(!locked);
+    ui->actionCtrl_Alt_Esc->setEnabled(!locked);
+    ui->actionSettings->setEnabled(!locked);
+}
+
+bool
+MainWindow::benchmarkControlsLocked() const
+{
+    return benchmark_controls_locked;
 }
 
 void

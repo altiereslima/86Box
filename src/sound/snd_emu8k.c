@@ -14,6 +14,7 @@
 #include <86box/io.h>
 #include <86box/mem.h>
 #include <86box/rom.h>
+#include <86box/perf_dashboard.h>
 #include <86box/sound.h>
 #include <86box/thread.h>
 #include <86box/snd_emu8k.h>
@@ -1767,6 +1768,7 @@ emu8k_synth_core(emu8k_t *emu8k, int target_pos)
     if (emu8k->pos >= target_pos)
         return;
 
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_SOUND_EMU8K);
     int32_t       *buf;
     emu8k_voice_t *emu_voice;
     int            pos;
@@ -2131,6 +2133,7 @@ emu8k_synth_core(emu8k_t *emu8k, int target_pos)
     emu8k->wc += (target_pos - emu8k->pos);
 
     emu8k->pos = target_pos;
+    PERF_SCOPE_END(PERF_DOMAIN_SOUND_EMU8K);
 }
 
 /* OPT-2: Barrier-based update function */

@@ -9,10 +9,16 @@
  *          Performance dashboard instrumentation implementation.
  */
 #include <stddef.h>
+#include <stdatomic.h>
 
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/perf_dashboard.h>
+#include <86box/timer.h>
+#include <86box/video.h>
+#include "cpu.h"
+
+extern int fps;
 
 #ifdef _WIN32
 #    include <windows.h>
@@ -202,4 +208,9 @@ perfdash_take_snapshot(perf_snapshot_t *out)
     out->memory_bytes_rw       = perfdash_atomic_load_u64(&perf_memory_bytes_rw);
     out->audio_underruns       = perfdash_atomic_load_u64(&perf_audio_underruns);
     out->wall_ns               = perfdash_now_ns();
+    out->guest_tsc             = tsc;
+    out->guest_cycles_per_sec  = cpu_s ? (uint64_t) cpu_s->rspeed : 0;
+    out->speed_percent         = (uint32_t) ((fps > 0) ? (fps / (force_10ms ? 1 : 10)) : 0);
+    out->render_fps            = (uint32_t) atomic_load(&monitors[0].mon_actualrenderedframes);
+    out->using_dynarec         = (uint8_t) !!cpu_use_dynarec;
 }

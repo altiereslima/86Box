@@ -34,6 +34,7 @@
 #include <86box/timer.h>
 #include <86box/pit.h>
 #include <86box/pit_fast.h>
+#include <86box/perf_dashboard.h>
 #include <86box/ppi.h>
 #include <86box/machine.h>
 #include <86box/sound.h>
@@ -539,6 +540,7 @@ pit_ctr_set_using_timer(void *data, int counter_id, int using_timer)
 static void
 pit_timer_over(void *priv)
 {
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_TIMING_PIT);
     pit_t *dev = (pit_t *) priv;
 
     dev->clock ^= 1;
@@ -547,6 +549,7 @@ pit_timer_over(void *priv)
         pit_ctr_set_clock_common(&dev->counters[i], dev->clock, dev);
 
     timer_advance_u64(&dev->callback_timer, dev->pit_const >> 1ULL);
+    PERF_SCOPE_END(PERF_DOMAIN_TIMING_PIT);
 }
 
 static void

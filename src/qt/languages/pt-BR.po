@@ -3064,6 +3064,243 @@ msgstr "Bruto"
 msgid "Use EDC/ECC emulation"
 msgstr "Usar emulação EDC/ECC"
 
+msgid "%1 guest cycles accumulated in the latest sample."
+msgstr "%1 ciclos do convidado acumulados na amostra mais recente."
+
+msgid "%1 ms"
+msgstr "%1 ms"
+
+msgid "%1 remaining. Pause, fast-forward, reset and guest control actions are locked."
+msgstr "Restam %1. As ações de pausar, avançar rapidamente, resetar e controlar o convidado estão bloqueadas."
+
+msgid "%1%"
+msgstr "%1%"
+
+msgid "%1% host"
+msgstr "%1% do anfitrião"
+
+msgid "0"
+msgstr "0"
+
+msgid "1 Hz"
+msgstr "1 Hz"
+
+msgid "10 Hz"
+msgstr "10 Hz"
+
+msgid "120 s"
+msgstr "120 s"
+
+msgid "15 s"
+msgstr "15 s"
+
+msgid "2 Hz"
+msgstr "2 Hz"
+
+msgid "30 s"
+msgstr "30 s"
+
+msgid "5 Hz"
+msgstr "5 Hz"
+
+msgid "60 s"
+msgstr "60 s"
+
+msgid "86Box Performance Dashboard"
+msgstr "Painel de Desempenho do 86Box"
+
+msgid "Audio Underruns"
+msgstr "Underruns de áudio"
+
+msgid "Audio, Timing and I/O"
+msgstr "Áudio, temporização e E/S"
+
+msgid "Average FPS"
+msgstr "FPS médio"
+
+msgid "Average Frame Time"
+msgstr "Tempo médio de quadro"
+
+msgid "Average Speed"
+msgstr "Velocidade média"
+
+msgid "Benchmark"
+msgstr "Benchmark"
+
+msgid "Benchmark Result"
+msgstr "Resultado do benchmark"
+
+msgid "Benchmark Running"
+msgstr "Benchmark em execução"
+
+msgid "Blit/Page Flip"
+msgstr "Blit/Page Flip"
+
+msgid "Branch"
+msgstr "Branch"
+
+msgid "CD-ROM"
+msgstr "CD-ROM"
+
+msgid "Copy Result"
+msgstr "Copiar resultado"
+
+msgid "CPU"
+msgstr "CPU"
+
+msgid "CPU Distribution"
+msgstr "Distribuição da CPU"
+
+msgid "Cycles/s"
+msgstr "Ciclos/s"
+
+msgid "Derived from actual rendered frames per second."
+msgstr "Derivado dos quadros por segundo realmente renderizados."
+
+msgid "dynarec"
+msgstr "dynarec"
+
+msgid "Dynarec Blocks"
+msgstr "Blocos do dynarec"
+
+msgid "EMU8K"
+msgstr "EMU8K"
+
+msgid "Execution Mode"
+msgstr "Modo de execução"
+
+msgid "Floppy"
+msgstr "Disquete"
+
+msgid "Formula: 0.4*Speed + 0.25*Inverse Frame Time + 0.2*FPS Stability + 0.15*(1 - underrun rate)."
+msgstr "Fórmula: 0.4*Velocidade + 0.25*Inverso do tempo de quadro + 0.2*Estabilidade do FPS + 0.15*(1 - taxa de underrun)."
+
+msgid "FPS"
+msgstr "FPS"
+
+msgid "Frame Time"
+msgstr "Tempo de quadro"
+
+msgid "Guest Cycles"
+msgstr "Ciclos do convidado"
+
+msgid "HDD"
+msgstr "HDD"
+
+msgid "Host CPU"
+msgstr "CPU do anfitrião"
+
+msgid "I/O"
+msgstr "E/S"
+
+msgid "Idle"
+msgstr "Ocioso"
+
+msgid "Interpreter"
+msgstr "Interpretador"
+
+msgid "Last score %1 / 100"
+msgstr "Última pontuação %1 / 100"
+
+msgid "Live capture at %1 with %2 active."
+msgstr "Captura ao vivo em %1 com %2 ativo."
+
+msgid "Main loop wall-time share on the host."
+msgstr "Parcela do tempo de parede do loop principal no anfitrião."
+
+msgid "Matrox"
+msgstr "Matrox"
+
+msgid "Max Frame Time"
+msgstr "Tempo máximo de quadro"
+
+msgid "Memory"
+msgstr "Memória"
+
+msgid "n/a"
+msgstr "n/d"
+
+msgid "No activity"
+msgstr "Sem atividade"
+
+msgid "OPL"
+msgstr "OPL"
+
+msgid "PC Speaker"
+msgstr "PC Speaker"
+
+msgid "PIT"
+msgstr "PIT"
+
+msgid "Refresh"
+msgstr "Atualização"
+
+msgid "Refresh Cadence"
+msgstr "Cadência de atualização"
+
+msgid "Rendered frames reported by the primary monitor."
+msgstr "Quadros renderizados informados pelo monitor principal."
+
+msgid "Reset"
+msgstr "Redefinir"
+
+msgid "Run Benchmark"
+msgstr "Executar benchmark"
+
+msgid "Running, %1 left"
+msgstr "Em execução, faltam %1"
+
+msgid "S3"
+msgstr "S3"
+
+msgid "Score %1 / 100"
+msgstr "Pontuação %1 / 100"
+
+msgid "Session Summary"
+msgstr "Resumo da sessão"
+
+msgid "Start capture to refresh the dashboard or run a benchmark from a clean snapshot."
+msgstr "Inicie a captura para atualizar o painel ou execute um benchmark a partir de um snapshot limpo."
+
+msgid "Stop"
+msgstr "Parar"
+
+msgid "Stop Benchmark"
+msgstr "Parar benchmark"
+
+msgid "Stopped"
+msgstr "Parado"
+
+msgid "Target speed from the live performance snapshot."
+msgstr "Velocidade alvo do snapshot de desempenho ao vivo."
+
+msgid "the interpreter"
+msgstr "o interpretador"
+
+msgid "Timing"
+msgstr "Temporização"
+
+msgid "TLB"
+msgstr "TLB"
+
+msgid "Total Cycles"
+msgstr "Ciclos totais"
+
+msgid "Video"
+msgstr "Vídeo"
+
+msgid "Video Pipeline"
+msgstr "Pipeline de vídeo"
+
+msgid "Voodoo FIFO"
+msgstr "Voodoo FIFO"
+
+msgid "Voodoo Render"
+msgstr "Voodoo Render"
+
+msgid "Waiting for rendered-frame samples."
+msgstr "Aguardando amostras de quadros renderizados."
+
 msgid "Audio output device:"
 msgstr "Dispositivo de saída de áudio:"
 

@@ -3062,3 +3062,240 @@ msgstr ""
 
 msgid "Use EDC/ECC emulation"
 msgstr ""
+
+msgid "%1 guest cycles accumulated in the latest sample."
+msgstr ""
+
+msgid "%1 ms"
+msgstr ""
+
+msgid "%1 remaining. Pause, fast-forward, reset and guest control actions are locked."
+msgstr ""
+
+msgid "%1%"
+msgstr ""
+
+msgid "%1% host"
+msgstr ""
+
+msgid "0"
+msgstr ""
+
+msgid "1 Hz"
+msgstr ""
+
+msgid "10 Hz"
+msgstr ""
+
+msgid "120 s"
+msgstr ""
+
+msgid "15 s"
+msgstr ""
+
+msgid "2 Hz"
+msgstr ""
+
+msgid "30 s"
+msgstr ""
+
+msgid "5 Hz"
+msgstr ""
+
+msgid "60 s"
+msgstr ""
+
+msgid "86Box Performance Dashboard"
+msgstr ""
+
+msgid "Audio Underruns"
+msgstr ""
+
+msgid "Audio, Timing and I/O"
+msgstr ""
+
+msgid "Average FPS"
+msgstr ""
+
+msgid "Average Frame Time"
+msgstr ""
+
+msgid "Average Speed"
+msgstr ""
+
+msgid "Benchmark"
+msgstr ""
+
+msgid "Benchmark Result"
+msgstr ""
+
+msgid "Benchmark Running"
+msgstr ""
+
+msgid "Blit/Page Flip"
+msgstr ""
+
+msgid "Branch"
+msgstr ""
+
+msgid "CD-ROM"
+msgstr ""
+
+msgid "Copy Result"
+msgstr ""
+
+msgid "CPU"
+msgstr ""
+
+msgid "CPU Distribution"
+msgstr ""
+
+msgid "Cycles/s"
+msgstr ""
+
+msgid "Derived from actual rendered frames per second."
+msgstr ""
+
+msgid "dynarec"
+msgstr ""
+
+msgid "Dynarec Blocks"
+msgstr ""
+
+msgid "EMU8K"
+msgstr ""
+
+msgid "Execution Mode"
+msgstr ""
+
+msgid "Floppy"
+msgstr ""
+
+msgid "Formula: 0.4*Speed + 0.25*Inverse Frame Time + 0.2*FPS Stability + 0.15*(1 - underrun rate)."
+msgstr ""
+
+msgid "FPS"
+msgstr ""
+
+msgid "Frame Time"
+msgstr ""
+
+msgid "Guest Cycles"
+msgstr ""
+
+msgid "HDD"
+msgstr ""
+
+msgid "Host CPU"
+msgstr ""
+
+msgid "I/O"
+msgstr ""
+
+msgid "Idle"
+msgstr ""
+
+msgid "Interpreter"
+msgstr ""
+
+msgid "Last score %1 / 100"
+msgstr ""
+
+msgid "Live capture at %1 with %2 active."
+msgstr ""
+
+msgid "Main loop wall-time share on the host."
+msgstr ""
+
+msgid "Matrox"
+msgstr ""
+
+msgid "Max Frame Time"
+msgstr ""
+
+msgid "Memory"
+msgstr ""
+
+msgid "n/a"
+msgstr ""
+
+msgid "No activity"
+msgstr ""
+
+msgid "OPL"
+msgstr ""
+
+msgid "PC Speaker"
+msgstr ""
+
+msgid "PIT"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Refresh Cadence"
+msgstr ""
+
+msgid "Rendered frames reported by the primary monitor."
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Run Benchmark"
+msgstr ""
+
+msgid "Running, %1 left"
+msgstr ""
+
+msgid "S3"
+msgstr ""
+
+msgid "Score %1 / 100"
+msgstr ""
+
+msgid "Session Summary"
+msgstr ""
+
+msgid "Start capture to refresh the dashboard or run a benchmark from a clean snapshot."
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+msgid "Stop Benchmark"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Target speed from the live performance snapshot."
+msgstr ""
+
+msgid "the interpreter"
+msgstr ""
+
+msgid "Timing"
+msgstr ""
+
+msgid "TLB"
+msgstr ""
+
+msgid "Total Cycles"
+msgstr ""
+
+msgid "Video"
+msgstr ""
+
+msgid "Video Pipeline"
+msgstr ""
+
+msgid "Voodoo FIFO"
+msgstr ""
+
+msgid "Voodoo Render"
+msgstr ""
+
+msgid "Waiting for rendered-frame samples."
+msgstr ""

@@ -59,6 +59,12 @@ typedef struct perf_snapshot_t {
     uint64_t memory_bytes_rw;
     uint64_t audio_underruns;
     uint64_t wall_ns;
+    uint64_t guest_tsc;
+    uint64_t guest_cycles_per_sec;
+    uint32_t speed_percent;
+    uint32_t render_fps;
+    uint8_t  using_dynarec;
+    uint8_t  reserved[3];
 } perf_snapshot_t;
 
 extern volatile int perfdash_enabled;

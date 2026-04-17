@@ -24,6 +24,7 @@
 #include <86box/pit.h>
 #include <86box/snd_speaker.h>
 #include <86box/sound.h>
+#include <86box/perf_dashboard.h>
 #include <86box/plat_unused.h>
 
 int speaker_mute       = 0;
@@ -86,6 +87,7 @@ speaker_update(void)
 void
 speaker_get_buffer(int32_t *buffer, int len, UNUSED(void *priv))
 {
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_SOUND_SPK);
     double val_l, val_r;
 
     speaker_update();
@@ -104,6 +106,7 @@ speaker_get_buffer(int32_t *buffer, int len, UNUSED(void *priv))
     }
 
     speaker_pos = 0;
+    PERF_SCOPE_END(PERF_DOMAIN_SOUND_SPK);
 }
 
 void

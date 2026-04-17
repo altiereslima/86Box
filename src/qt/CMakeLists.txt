@@ -93,6 +93,14 @@ add_library(plat STATIC
 add_library(ui STATIC
     qt_ui.cpp
 
+    perfdash/qt_perfdash_benchmark.cpp
+    perfdash/qt_perfdash_benchmark.hpp
+    perfdash/qt_perfdash_model.cpp
+    perfdash/qt_perfdash_model.hpp
+    perfdash/qt_perfdash_theme.cpp
+    perfdash/qt_perfdash_theme.hpp
+    perfdash/qt_perfdash_widgets.cpp
+    perfdash/qt_perfdash_widgets.hpp
     perfdash/qt_perfdash_window.cpp
     perfdash/qt_perfdash_window.hpp
 

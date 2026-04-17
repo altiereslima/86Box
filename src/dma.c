@@ -31,6 +31,7 @@
 #include <86box/io.h>
 #include <86box/pic.h>
 #include <86box/dma.h>
+#include <86box/perf_dashboard.h>
 #include <86box/plat_unused.h>
 
 dma_t   dma[8];
@@ -134,6 +135,7 @@ dma_sg_next_addr(dma_t *dev)
 static void
 dma_block_transfer(int channel)
 {
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_TIMING_DMA);
     int bit16 = (channel >= 4);
 
     if (dma_advanced)
@@ -154,11 +156,13 @@ dma_block_transfer(int channel)
         }
     }
     dma_req_is_soft = 0;
+    PERF_SCOPE_END(PERF_DOMAIN_TIMING_DMA);
 }
 
 static void
 dma_mem_to_mem_transfer(void)
 {
+    PERF_SCOPE_BEGIN(PERF_DOMAIN_TIMING_DMA);
     int i;
 
     if ((dma[0].mode & 0x0c) != 0x08)
@@ -175,6 +179,7 @@ dma_mem_to_mem_transfer(void)
         dma_channel_write(1, dma_buffer[i]);
 
     dma_req_is_soft = 0;
+    PERF_SCOPE_END(PERF_DOMAIN_TIMING_DMA);
 }
 
 static void
