@@ -413,7 +413,7 @@ void
 PerfDashboardWindow::restoreWindowSettings()
 {
     QSettings settings(QStringLiteral("86Box"), QStringLiteral("86Box"));
-    const auto geometry = settings.value(QStringLiteral(kSettingsKey)).toByteArray();
+    const auto geometry = settings.value(QLatin1String(kSettingsKey)).toByteArray();
 
     if (!geometry.isEmpty())
         restoreGeometry(geometry);
@@ -423,7 +423,7 @@ void
 PerfDashboardWindow::saveWindowSettings() const
 {
     QSettings settings(QStringLiteral("86Box"), QStringLiteral("86Box"));
-    settings.setValue(QStringLiteral(kSettingsKey), saveGeometry());
+    settings.setValue(QLatin1String(kSettingsKey), saveGeometry());
 }
 
 void

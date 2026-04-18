@@ -37,6 +37,13 @@ extern "C" {
 #include <86box/86box.h>
 }
 
+static void
+initThemeResources()
+{
+    Q_INIT_RESOURCE(black_modern);
+    Q_INIT_RESOURCE(darkstyle);
+}
+
 namespace {
 
 constexpr auto kBlackModernQssPath = ":/themes/black_modern.qss";
@@ -95,8 +102,7 @@ loadBlackModernStylesheet()
     static QString stylesheet;
 
     if (!initialized) {
-        Q_INIT_RESOURCE(black_modern);
-        Q_INIT_RESOURCE(darkstyle);
+        initThemeResources();
 
         QFile file(kBlackModernQssPath);
         if (!file.exists()) {
@@ -149,11 +155,12 @@ bool
 isSystemThemeChangeMessage(const void *message)
 {
     const auto *msg = static_cast<const MSG *>(message);
+    const auto  area = reinterpret_cast<LPCWSTR>(msg ? msg->lParam : 0);
 
     return msg
         && (msg->message == WM_SETTINGCHANGE)
-        && (msg->lParam != nullptr)
-        && (wcscmp(L"ImmersiveColorSet", static_cast<const wchar_t *>(msg->lParam)) == 0);
+        && (area != nullptr)
+        && (wcscmp(L"ImmersiveColorSet", area) == 0);
 }
 
 void

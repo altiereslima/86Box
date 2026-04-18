@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #endif
 
+#include <stdint.h>
+
 /* Configuration values. */
 #define GFXCARD_MAX  2
 #define SERIAL_MAX   8
