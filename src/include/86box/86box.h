@@ -31,6 +31,7 @@
 #endif
 
 #include <stdint.h>
+#include <stdio.h>
 
 /* Configuration values. */
 #define GFXCARD_MAX  2
